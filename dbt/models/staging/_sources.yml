@@ -1,0 +1,32 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: "Cópia fiel dos arquivos públicos da NYC TLC, sem transformação."
+    freshness:
+      warn_after: { count: 45, period: day }
+    tables:
+      - name: yellow_trips
+        description: "Uma linha por corrida de táxi amarelo."
+        columns:
+          - name: vendorid
+            description: "Provedor do registro (1 = Creative Mobile, 2 = VeriFone)."
+          - name: tpep_pickup_datetime
+          - name: tpep_dropoff_datetime
+          - name: passenger_count
+          - name: trip_distance
+          - name: pulocationid
+          - name: dolocationid
+          - name: payment_type
+          - name: fare_amount
+          - name: tip_amount
+          - name: total_amount
+          - name: _source_file
+          - name: _loaded_at
+
+      - name: taxi_zones
+        description: "Lookup oficial de zonas (LocationID -> Borough/Zone)."
+        columns:
+          - name: locationid
+            tests: [unique, not_null]

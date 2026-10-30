@@ -1,0 +1,37 @@
+# Atalhos do projeto. No Windows, use Git Bash ou WSL — ou copie os comandos crus no README.
+
+.PHONY: up down restart logs psql seed dbt test lint clean
+
+up:
+	# O container roda como uid 50000; sem isso o bind mount de ./data fica sem escrita.
+	mkdir -p data/raw && chmod -R 777 data
+	docker compose up -d
+	@echo "Airflow: http://localhost:8080 (senha em: docker compose logs airflow | grep -i password)"
+
+down:
+	docker compose down
+
+restart:
+	docker compose restart airflow
+
+logs:
+	docker compose logs -f airflow
+
+psql:
+	docker compose exec postgres psql -U dw -d warehouse
+
+# Baixa 3 meses e carrega em raw (ajuste o período)
+seed:
+	docker compose exec airflow python /opt/airflow/scripts/ingest.py --months 2024-01 2024-02 2024-03
+
+dbt:
+	docker compose exec airflow bash -lc "cd /opt/airflow/dbt && dbt build --profiles-dir ."
+
+test:
+	docker compose exec airflow bash -lc "cd /opt/airflow/dbt && dbt test --profiles-dir ."
+
+lint:
+	ruff check scripts dags
+
+clean:
+	docker compose down -v

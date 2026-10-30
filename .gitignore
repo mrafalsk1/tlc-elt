@@ -1,0 +1,23 @@
+# Dados nunca entram no Git
+data/
+*.parquet
+*.csv
+!dbt/seeds/*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/.user.yml
+
+# Ambiente
+.env
+.DS_Store

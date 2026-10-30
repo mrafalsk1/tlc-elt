@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: tlc-postgres
+    environment:
+      POSTGRES_USER: dw
+      POSTGRES_PASSWORD: dw
+      POSTGRES_DB: airflow
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dw -d airflow"]
+      interval: 5s
+      retries: 10
+
+  airflow:
+    image: apache/airflow:2.10.5
+    container_name: tlc-airflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://dw:dw@postgres:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      DBT_PROFILES_DIR: /opt/airflow/dbt
+      # dbt-core fixado: a imagem resolve para 2.0.0rc9, que não tem adapter postgres.
+      _PIP_ADDITIONAL_REQUIREMENTS: "dbt-core==1.8.2 dbt-postgres==1.8.2 pandas pyarrow requests SQLAlchemy"
+    command: standalone
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts
+      - ./dbt:/opt/airflow/dbt
+      - ./data:/opt/airflow/data
+
+volumes:
+  pgdata:

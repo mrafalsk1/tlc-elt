@@ -1,0 +1,37 @@
+# Perfis de conexão do dbt.
+# dev        -> roda de dentro do Docker (host = postgres)
+# dev_local  -> roda da sua máquina (porta 5433 publicada pelo compose)
+# ci         -> roda no GitHub Actions (serviço Postgres em localhost:5432)
+
+tlc:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: postgres
+      user: dw
+      password: dw
+      port: 5432
+      dbname: warehouse
+      schema: staging
+      threads: 4
+
+    dev_local:
+      type: postgres
+      host: localhost
+      user: dw
+      password: dw
+      port: 5433
+      dbname: warehouse
+      schema: staging
+      threads: 4
+
+    ci:
+      type: postgres
+      host: localhost
+      user: postgres
+      password: postgres
+      port: 5432
+      dbname: warehouse
+      schema: ci
+      threads: 4
