@@ -1,31 +1,39 @@
-# TLC ELT — pipeline de dados de ponta a ponta
+# TLC ELT — end-to-end data pipeline
 
 [![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
 
-Pipeline ELT que ingere dados públicos de corridas de táxi de Nova York, transforma com
-**dbt** e orquestra com **Airflow**, rodando inteiramente em Docker.
+New York City's yellow taxis make close to three million trips a month, and the city
+publishes every one of them as a Parquet file. This project answers three questions an
+operations team would ask about that data: **when and where demand concentrates**, **how
+far and how fast trips really go per zone**, and **whether tipping changes with the payment
+method**. It answers them end to end — Parquet into Postgres, layered models in dbt with
+tests on every mart, and a monthly Airflow run that can be replayed without duplicating a
+single row.
 
-<!-- TODO: 1 parágrafo dizendo que pergunta o projeto responde, não o que ele usa. -->
+Everything runs in Docker: no cloud account, no paid warehouse. A clean clone needs two
+commands.
 
-## Rodando em 5 minutos
+## Running it in five minutes
 
 ```bash
-git clone <seu-repo>
+git clone <your-repo>
 cd tlc-elt
 cp .env.example .env
-docker compose up -d          # sobe Postgres + Airflow
-docker compose logs airflow | grep -i password   # senha do Airflow em http://localhost:8080
-make seed                      # baixa 3 meses e carrega em raw
-make dbt                       # roda modelos e testes
+make up      # Postgres + Airflow; also makes ./data writable for the container user
+make seed    # downloads 3 months of Parquet and loads them into raw
+make dbt     # runs the models and their tests
 ```
 
-## Arquitetura
+Airflow lives at **http://localhost:8080** (`admin` / `admin` locally — a real deployment
+would take a managed password, never one baked into the compose file).
+`make psql` opens the warehouse and `make down` stops the containers without dropping the
+volume.
 
-<!-- TODO: diagrama (Mermaid) + uma frase por caixa -->
+## Architecture
 
 ```mermaid
 flowchart LR
-    A[Fonte pública Parquet] --> B[ingest.py]
+    A[TLC public Parquet] --> B[ingest.py]
     B --> C[(raw)]
     C --> D[dbt staging]
     D --> E[dbt intermediate]
@@ -33,37 +41,35 @@ flowchart LR
     F --> G[Metabase]
 ```
 
-## Modelo de dados
-
-| Camada | Schema | Materialização | Papel |
+| Layer | Schema | Materialization | Role |
 |---|---|---|---|
-| raw | `raw` | tabela | cópia fiel da fonte |
-| staging | `staging` | view | tipagem, limpeza, derivadas |
-| intermediate | `intermediate` | view | joins e regras de negócio |
-| marts | `marts` | tabela / incremental | dimensional pronto para consumo |
+| raw | `raw` | table | verbatim copy of the source (`_source_file`, `_loaded_at`) |
+| staging | `staging` | view | typing, cleaning, derived columns |
+| intermediate | `intermediate` | view | joins and business rules |
+| marts | `marts` | table / incremental | dimensional model ready for consumption |
 
-<!-- TODO: tabela dos modelos com grão e colunas-chave -->
+<!-- TODO(semana 3): tabela dos modelos com grão e colunas-chave; números reais de linhas -->
 
-## Resultados
+## Results
 
-<!-- TODO: os 3 gráficos + o número que cada um sustenta -->
+<!-- TODO(semana 5): os 3 gráficos + o número que cada um sustenta -->
 
-## Decisões e trade-offs
+## Design decisions and trade-offs
 
-<!-- TODO: 4 a 6 bullets. Exemplos:
-- Por que Postgres e não Snowflake: custo zero, portabilidade do dbt.
-- Por que incremental por mês: full refresh levava X min, incremental leva Y.
-- Por que delete+insert e não merge: X.
-- O que eu deixaria diferente em produção: orquestração, freshness, monitoramento. -->
+<!-- TODO(semana 5): 4 a 6 bullets. Exemplos:
+- Postgres instead of Snowflake: zero cost, and the dbt project stays portable by swapping the adapter.
+- COPY instead of to_sql: 3M rows in ~50s against several minutes of row-by-row INSERT.
+- delete+insert instead of merge: idempotency without depending on a stable key in the source.
+- What I would do differently in production: source freshness, monitoring, dagster-style orchestration. -->
 
-## Qualidade de dados
+## Data quality
 
-<!-- TODO: lista dos testes e o que cada um protege. Inclua o teste de reconciliação. -->
+<!-- TODO(semana 2/3): lista dos testes e o que cada um protege. Inclua o teste de reconciliação. -->
 
-## Limitações
+## Limitations
 
-<!-- TODO: seja honesto. Ex.: sem streaming, sem freshness automático, dados de 2024. -->
+<!-- TODO(semana 5): seja honesto. Ex.: no streaming, no automatic freshness check, data stops at 2024. -->
 
-## Próximos passos
+## Next steps
 
-<!-- TODO: 2-3 itens concretos -->
+<!-- TODO(semana 5): 2-3 itens concretos -->

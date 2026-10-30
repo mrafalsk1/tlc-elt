@@ -1,0 +1,44 @@
+version: 2
+
+models:
+  - name: stg_yellow_trips
+    description: >
+      Uma linha por corrida válida de táxi amarelo em NYC, com filtros de sanidade,
+      deduplicação pela chave natural e colunas derivadas (duração, velocidade, gorjeta).
+      As regras estão documentadas no topo do próprio modelo.
+    columns:
+      - name: pickup_at
+        description: "Início da corrida (relógio do taxímetro)."
+        tests:
+          - not_null
+      - name: dropoff_at
+        description: "Fim da corrida. Sempre depois de pickup_at por construção."
+        tests:
+          - not_null
+      - name: pickup_zone_id
+        description: "LocationID da zona de embarque (junta com stg_taxi_zones)."
+        tests:
+          - not_null
+      - name: dropoff_zone_id
+        description: "LocationID da zona de desembarque."
+        tests:
+          - not_null
+      - name: payment_type
+        description: "0 desconhecido, 1 cartão, 2 dinheiro, 3 sem cobrança, 4 disputa, 5 desconhecido, 6 viagem anulada."
+        tests:
+          - accepted_values:
+              values: [0, 1, 2, 3, 4, 5, 6]
+      - name: fare_amount
+        description: "Tarifa do taxímetro, em dólar. Sempre > 0 após o filtro."
+        tests:
+          - not_null
+      - name: total_amount
+        description: "Total cobrado do passageiro, incluindo taxas e gorjeta."
+        tests:
+          - not_null
+      - name: trip_duration_min
+        description: "Duração em minutos, arredondada a 2 casas."
+        tests:
+          - not_null
+      - name: speed_mph
+        description: "Velocidade média em milhas por hora. Nula quando a duração é zero."
