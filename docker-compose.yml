@@ -2,6 +2,8 @@ services:
   postgres:
     image: postgres:16
     container_name: tlc-postgres
+    # Se o WSL/Docker reiniciar, os containers voltam sozinhos.
+    restart: unless-stopped
     environment:
       POSTGRES_USER: dw
       POSTGRES_PASSWORD: dw
@@ -19,6 +21,7 @@ services:
   airflow:
     image: apache/airflow:2.10.5
     container_name: tlc-airflow
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy

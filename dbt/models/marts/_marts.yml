@@ -1,0 +1,103 @@
+version: 2
+
+models:
+  - name: int_trips_enriched
+    description: >
+      Uma linha por corrida da staging, enriquecida com nomes de zona e flags de
+      qualidade (fora do período, distância zero, corrida longa, velocidade alta,
+      aeroporto, noturna). Nenhuma linha é descartada aqui.
+    columns:
+      - name: is_valid_trip
+        description: "False quando a corrida é outlier pelas quatro regras documentadas no modelo."
+        tests:
+          - not_null
+      - name: pickup_zone
+        description: "Nome da zona de embarque vindo do lookup da TLC."
+        tests:
+          - not_null
+      - name: dropoff_zone
+        description: "Nome da zona de desembarque vindo do lookup da TLC."
+        tests:
+          - not_null
+
+  - name: fct_trips
+    description: >
+      Tabela fato no grão de uma corrida. Incremental, com trip_id determinístico
+      (md5 da chave natural). Não filtra outliers: a seleção fica em is_valid_trip.
+    columns:
+      - name: trip_id
+        description: "md5(vendor_id | pickup_at | dropoff_at | total_amount). Chave da fato."
+        tests:
+          - unique
+          - not_null
+      - name: pickup_zone_id
+        description: "Zona de embarque. Deve existir em dim_zones."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_zones')
+              field: zone_id
+      - name: dropoff_zone_id
+        description: "Zona de desembarque. Deve existir em dim_zones."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_zones')
+              field: zone_id
+      - name: payment_type
+        description: "0 desconhecido, 1 cartão, 2 dinheiro, 3 sem cobrança, 4 disputa, 5 desconhecido, 6 anulada."
+        tests:
+          - accepted_values:
+              values: [0, 1, 2, 3, 4, 5, 6]
+      - name: is_valid_trip
+        description: "Flag herdada do intermediate; as agregações filtram por ela."
+        tests:
+          - not_null
+
+  - name: dim_zones
+    description: "Dimensão de zonas da TLC, com a marca de aeroporto."
+    columns:
+      - name: zone_id
+        description: "LocationID da TLC."
+        tests:
+          - unique
+          - not_null
+      - name: is_airport
+        description: "True para JFK, LaGuardia e Newark."
+        tests:
+          - not_null
+
+  - name: agg_daily_demand
+    description: >
+      Demanda diária por zona de embarque. Grão: dia × zona, apenas corridas válidas.
+    columns:
+      - name: trip_date
+        tests:
+          - not_null
+      - name: zone_id
+        tests:
+          - not_null
+      - name: trips
+        description: "Corridas válidas naquele dia naquela zona."
+        tests:
+          - not_null
+
+  - name: agg_payment_behavior
+    description: >
+      Gorjeta por forma de pagamento e faixa de gorjeta. Grão: método × faixa.
+    columns:
+      - name: payment_method
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - credit_card
+                - cash
+                - no_charge
+                - dispute
+                - unknown
+                - voided_trip
+                - other
+      - name: tip_bucket
+        tests:
+          - not_null

@@ -42,3 +42,32 @@ models:
           - not_null
       - name: speed_mph
         description: "Velocidade média em milhas por hora. Nula quando a duração é zero."
+
+  - name: stg_taxi_zones
+    description: >
+      Lookup oficial da TLC com uma linha por zona de táxi. É a dimensão usada para
+      dar nome legível à origem e ao destino de cada corrida.
+    columns:
+      - name: zone_id
+        description: "LocationID da TLC. Chave primária da dimensão."
+        tests:
+          - unique
+          - not_null
+      - name: borough
+        description: "Distrito (Manhattan, Queens, Brooklyn, Bronx, Staten Island, EWR)."
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - Manhattan
+                - Queens
+                - Brooklyn
+                - Bronx
+                - Staten Island
+                - EWR
+                - Unknown
+                - N/A
+      - name: zone
+        description: "Nome da zona (ex.: JFK Airport, Upper East Side South)."
+        tests:
+          - not_null

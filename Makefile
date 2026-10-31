@@ -20,9 +20,10 @@ logs:
 psql:
 	docker compose exec postgres psql -U dw -d warehouse
 
-# Baixa 3 meses e carrega em raw (ajuste o período)
+# Baixa 3 meses + o lookup de zonas e carrega em raw (ajuste o período)
 seed:
 	docker compose exec airflow python /opt/airflow/scripts/ingest.py --months 2024-01 2024-02 2024-03
+	docker compose exec airflow python /opt/airflow/scripts/load_zones.py
 
 dbt:
 	docker compose exec airflow bash -lc "cd /opt/airflow/dbt && dbt build --profiles-dir ."
