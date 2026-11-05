@@ -73,7 +73,7 @@ Upper East Side North (406,956). JFK Airport is fourth by volume (407,799) but f
 revenue: US$ 33.4M against US$ 10.8M from Midtown, because its average ticket is **US$
 81.83** versus US$ 20–24 in Manhattan.
 
-![Demanda de corridas por hora do dia](data/graficos/demanda_por_hora.png)
+![Demand by hour of day](data/graficos/demanda_por_hora.png)
 
 ### When
 
@@ -88,9 +88,9 @@ tips. Read the number as *"tips are only observable for card payments"* — repo
 "cash riders are stingy" would be the classic mistake this dataset invites. Payment types
 3–6 (no charge, dispute, unknown, voided) exist but are under 6% of the volume.
 
-![Ticket médio por zona (top 10)](data/graficos/ticket_por_zona.png)
+![Top 10 zones by average ticket](data/graficos/ticket_por_zona.png)
 
-![Gorjeta média por método de pagamento](data/graficos/gorjeta_por_pagamento.png)
+![Average tip by payment method](data/graficos/gorjeta_por_pagamento.png)
 
 ## Design decisions and trade-offs
 
@@ -131,8 +131,3 @@ tips. Read the number as *"tips are only observable for card payments"* — repo
 - **2024 data only.** The Airflow DAG is monthly, but the seed loads three months.
 - **Single-node Postgres.** 3 GB fact table; a warehouse would be the production answer.
 
-## Next steps
-
-1. ✅ Three charts generated from `marts` tables (demand by hour, ticket by zone, tip by payment method).
-2. Schedule the DAG with backfill and prove idempotency through Airflow, not only via CLI.
-3. Measure and document the incremental runtime against a full refresh.
