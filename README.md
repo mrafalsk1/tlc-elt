@@ -66,22 +66,31 @@ Three months of data (January–March 2024): **9,554,778 raw rows → 9,412,455 
 cleaning → 9,201,679 valid trips** (97.8%). The remaining 210,776 are kept in the fact
 table and flagged, so every exclusion is auditable.
 
-**Where the demand is.** Midtown Center leads with 441,720 trips, followed by Upper East
-Side South (429,735) and Upper East Side North (406,956). JFK Airport is fourth by volume
-(407,799) but first by revenue: US$ 33.4M against US$ 10.8M from Midtown, because its
-average ticket is **US$ 81.83** versus US$ 20–24 in Manhattan.
+### Where the demand is
 
-**When.** The 6 p.m. hour carries 666,416 trips in the quarter, with 5 p.m. (632,051) and
-7 p.m. (591,465) right behind — the evening peak is three times the early morning.
+Midtown Center leads with 441,720 trips, followed by Upper East Side South (429,735) and
+Upper East Side North (406,956). JFK Airport is fourth by volume (407,799) but first by
+revenue: US$ 33.4M against US$ 10.8M from Midtown, because its average ticket is **US$
+81.83** versus US$ 20–24 in Manhattan.
 
-**Tipping by payment method.** Credit-card trips tip an average of **22.5% of the fare**
-(US$ 30.2M in the quarter). Cash trips record **0.00%**. That is not a behavioural finding:
-the meter cannot see cash tips. Read the number as *"tips are only observable for card
-payments"* — reporting it as "cash riders are stingy" would be the classic mistake this
-dataset invites. Payment types 3–6 (no charge, dispute, unknown, voided) exist but are
-under 6% of the volume.
+![Demanda de corridas por hora do dia](data/graficos/demanda_por_hora.png)
 
-<!-- TODO(semana 5): os 3 gráficos do Metabase + link -->
+### When
+
+The 6 p.m. hour carries 666,416 trips in the quarter, with 5 p.m. (632,051) and 7 p.m.
+(591,465) right behind — the evening peak is three times the early morning.
+
+### Tipping by payment method
+
+Credit-card trips tip an average of **22.5% of the fare** (US$ 30.2M in the quarter).
+Cash trips record **0.00%**. That is not a behavioural finding: the meter cannot see cash
+tips. Read the number as *"tips are only observable for card payments"* — reporting it as
+"cash riders are stingy" would be the classic mistake this dataset invites. Payment types
+3–6 (no charge, dispute, unknown, voided) exist but are under 6% of the volume.
+
+![Ticket médio por zona (top 10)](data/graficos/ticket_por_zona.png)
+
+![Gorjeta média por método de pagamento](data/graficos/gorjeta_por_pagamento.png)
 
 ## Design decisions and trade-offs
 
@@ -124,6 +133,6 @@ under 6% of the volume.
 
 ## Next steps
 
-1. Metabase dashboard with the three charts above, screenshots in this README.
+1. ✅ Three charts generated from `marts` tables (demand by hour, ticket by zone, tip by payment method).
 2. Schedule the DAG with backfill and prove idempotency through Airflow, not only via CLI.
 3. Measure and document the incremental runtime against a full refresh.
