@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """DAG: ELT mensal dos dados de táxi de NYC.
 
 Executa, todo dia 1º às 06:00:
@@ -13,7 +14,7 @@ Rodar o mesmo mês duas vezes não duplica dados:
 from __future__ import annotations
 
 import pendulum
-from airflow.decorators import dag, task
+from airflow.decorators import dag
 from airflow.operators.bash import BashOperator
 
 DBT_DIR = "/opt/airflow/dbt"

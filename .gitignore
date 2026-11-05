@@ -1,5 +1,6 @@
 # Dados nunca entram no Git
 data/
+!data/graficos/
 *.parquet
 *.csv
 !dbt/seeds/*.csv

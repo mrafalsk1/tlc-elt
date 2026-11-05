@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Ingestão de NYC TLC yellow taxi trips para o schema `raw`.
 
 Uso (dentro do container):
@@ -20,7 +21,7 @@ import argparse
 import io
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 import pandas as pd
@@ -125,7 +126,7 @@ def load(parquet_path: Path, month: str) -> int:
     # modelo dbt a jusante.
     df.columns = [str(c).strip().lower() for c in df.columns]
     df["_source_file"] = parquet_path.name
-    df["_loaded_at"] = datetime.now(timezone.utc)
+    df["_loaded_at"] = datetime.now(UTC)
 
     engine = create_engine(DB_URL)
     _ensure_table(engine, df)

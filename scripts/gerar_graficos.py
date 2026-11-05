@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Gera 3 gráficos do Projeto A a partir dos dados no Postgres.
 
 Salva em /opt/airflow/data/graficos/ (volume compartilhado com ./data no WSL).
@@ -12,6 +13,7 @@ import os
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import psycopg2
@@ -64,7 +66,7 @@ ax.bar(horas, viagens, color=COR)
 ax.set_xlabel("Hora do dia")
 ax.set_ylabel("Viagens")
 ax.set_title("Demanda de corridas por hora do dia (3 meses, 2024)")
-ax.set_xticks(range(0, 24))
+ax.set_xticks(range(24))
 ax.grid(axis="y", alpha=0.3)
 plt.tight_layout()
 plt.savefig(OUT_DIR / "demanda_por_hora.png", bbox_inches="tight")

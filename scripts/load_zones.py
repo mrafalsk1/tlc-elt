@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Carrega o lookup oficial de zonas da NYC TLC em `raw.taxi_zones`.
 
 Uso (dentro do container):
@@ -9,7 +10,6 @@ truncate+insert: simples e idempotente. O CSV fica em `data/raw/` junto dos Parq
 
 from __future__ import annotations
 
-import io
 import os
 from pathlib import Path
 
