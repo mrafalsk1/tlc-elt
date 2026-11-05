@@ -63,9 +63,9 @@ viagens = [r[1] for r in rows]
 
 fig, ax = plt.subplots(figsize=(8, 4))
 ax.bar(horas, viagens, color=COR)
-ax.set_xlabel("Hora do dia")
-ax.set_ylabel("Viagens")
-ax.set_title("Demanda de corridas por hora do dia (3 meses, 2024)")
+ax.set_xlabel("Hour of day")
+ax.set_ylabel("Trips")
+ax.set_title("Ride demand by hour of day (3 months, 2024)")
 ax.set_xticks(range(24))
 ax.grid(axis="y", alpha=0.3)
 plt.tight_layout()
@@ -94,9 +94,9 @@ tickets = tickets[::-1]
 
 fig, ax = plt.subplots(figsize=(8, 5))
 ax.barh(zonas, tickets, color=COR)
-ax.set_xlabel("Ticket médio (US$)")
-ax.set_ylabel("Zona de embarque")
-ax.set_title("Top 10 zonas por ticket médio (US$, 3 meses 2024)")
+ax.set_xlabel("Average fare (US$)")
+ax.set_ylabel("Pickup zone")
+ax.set_title("Top 10 zones by average fare (US$, 3 months 2024)")
 ax.grid(axis="x", alpha=0.3)
 for i, v in enumerate(tickets):
     ax.text(v + 1, i, f"${v:,.2f}", va="center")
@@ -122,9 +122,9 @@ gorjetas = [float(r[1]) for r in rows]
 cores = [COR, "#ff7f0e"]
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.bar(metodos, gorjetas, color=cores[: len(metodos)])
-ax.set_xlabel("Método de pagamento")
-ax.set_ylabel("Gorjeta média (% da tarifa)")
-ax.set_title("Gorjeta média por método de pagamento (3 meses 2024)")
+ax.set_xlabel("Payment method")
+ax.set_ylabel("Average tip (% of fare)")
+ax.set_title("Average tip by payment method (3 months 2024)")
 ax.grid(axis="y", alpha=0.3)
 for i, v in enumerate(gorjetas):
     ax.text(i, v + 0.5, f"{v}%", ha="center")
