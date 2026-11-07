@@ -21,3 +21,4 @@ Legenda de status: pendente | em_andamento | validada | bloqueada
 | 2026-11-07 | Documentação dbt | `dbt docs generate --profiles-dir . --target ci` | catalog.json gerado |
 | 2026-11-07 | CI do GitHub Actions (run #7, commit `5fd5ce9`) | push em `main` | workflow `validate` concluído com sucesso (https://github.com/mrafalsk1/tlc-elt/actions/runs/42365555135) |
 | 2026-11-07 | F-01/F-02/F-08: idempotência e gráficos (Python 3.11 + Postgres 16 limpo) | `make validate` | ruff All checks passed, pytest 15 passed (4 de integração), dbt build 43/43 PASS (0 erro) |
+| 2026-11-07 | CI do GitHub Actions (run #8, commit `ebe2ac1`) | push em `main` | workflow `build` concluído com sucesso (https://github.com/mrafalsk1/tlc-elt/actions/runs/42373813404) |
