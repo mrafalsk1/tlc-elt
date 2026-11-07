@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  validate:
+  build:
     runs-on: ubuntu-latest
 
     services:
@@ -46,7 +46,7 @@ jobs:
         run: pip install --quiet -r requirements.txt -r requirements-dev.txt
 
       # Único portão: check-env + lint + test + bootstrap do banco + dbt build.
-      - name: Validate
+      - name: Build (make validate)
         run: make validate
 
       - name: dbt docs
