@@ -29,6 +29,9 @@ DB_URL = (
     f"{os.getenv('WAREHOUSE_DB', 'warehouse')}"
 )
 
+EXPECTED_COLUMNS = {"locationid", "borough", "zone", "service_zone"}
+EXPECTED_ROWS = 265
+
 
 def download() -> Path:
     RAW_DIR.mkdir(parents=True, exist_ok=True)
@@ -51,13 +54,28 @@ def load(csv_path: Path) -> int:
     df.columns = [str(c).strip().lower() for c in df.columns]
 
     # O lookup tem 265 linhas; qualquer coisa muito diferente disso é arquivo errado.
-    if not {"locationid", "borough", "zone", "service_zone"}.issubset(df.columns):
+    if not EXPECTED_COLUMNS.issubset(df.columns):
         raise SystemExit(f"colunas inesperadas no lookup: {list(df.columns)}")
+    if len(df) != EXPECTED_ROWS:
+        print(f"[aviso] lookup com {len(df)} linhas (esperado {EXPECTED_ROWS})")
 
     engine = create_engine(DB_URL)
-    df.to_sql("taxi_zones", engine, schema="raw", if_exists="replace", index=False)
-
     with engine.begin() as conn:
+        conn.execute(text("create schema if not exists raw"))
+        exists = conn.execute(text("select to_regclass('raw.taxi_zones')")).scalar() is not None
+
+    if not exists:
+        # Cria a tabela vazia com os tipos inferidos do próprio CSV.
+        df.head(0).to_sql("taxi_zones", engine, schema="raw", if_exists="append", index=False)
+
+    # truncate+insert: idempotente e preserva a estrutura da tabela
+    # (um `if_exists="replace"` derrubaria índices/grants a cada carga).
+    with engine.begin() as conn:
+        conn.execute(text("truncate table raw.taxi_zones"))
+
+    df.to_sql("taxi_zones", engine, schema="raw", if_exists="append", index=False)
+
+    with engine.connect() as conn:
         total = conn.execute(text("select count(*) from raw.taxi_zones")).scalar()
     print(f"[load] raw.taxi_zones: {total} linhas")
     return int(total)

@@ -6,3 +6,6 @@ requests==2.31.0
 SQLAlchemy==2.0.29
 psycopg2-binary==2.9.9
 pendulum==3.0.0
+# Usado por scripts/gerar_graficos.py (F-08). Antes só existia no container,
+# o que quebrava o CI e a reprodutibilidade.
+matplotlib==3.11.2

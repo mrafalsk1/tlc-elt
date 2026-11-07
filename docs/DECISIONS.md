@@ -29,4 +29,9 @@
 
 ## D-07: Geração de gráficos separada do dbt
 - gerar_graficos.py lê de marts e salva PNGs em data/graficos/.
-- Motivo: separa transformação (dbt) de visualização (matplotlib); o CI valida que os gráficos existem no README.
+- Motivo: separa transformação (dbt) de visualização (matplotlib); o CI valida a geração dos 3 PNGs com uma conexão falsa (tests/unit/test_graficos.py), sem precisar de dados carregados.
+- matplotlib==3.11.2 fixado em requirements.txt (antes só existia no container, o que quebrava o CI).
+
+## D-08: Carga do lookup de zonas com truncate+insert
+- load_zones.py usa TRUNCATE + INSERT, não `if_exists="replace"`.
+- Motivo: mantém a estrutura da tabela (tipos, PK, índices, grants) e continua idempotente; o `replace` derrubava e recriava a tabela a cada carga.

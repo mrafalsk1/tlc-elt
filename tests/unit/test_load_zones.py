@@ -7,6 +7,9 @@ de colunas e normalização de nomes.
 import sys
 from pathlib import Path
 
+import pandas as pd
+import pytest
+
 # Adiciona scripts/ ao path para importar load_zones
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 
@@ -33,3 +36,14 @@ def test_zones_url_is_valid():
     """A URL do lookup deve ser HTTPS e apontar para a fonte oficial."""
     assert load_zones.ZONES_URL.startswith("https://")
     assert "taxi_zone_lookup.csv" in load_zones.ZONES_URL
+
+
+def test_load_rejects_unexpected_columns(tmp_path):
+    """O loader aborta antes de tocar no banco quando o CSV não tem as colunas."""
+    csv_path = tmp_path / "lookup.csv"
+    pd.DataFrame(
+        {"locationid": [1], "borough": ["Manhattan"], "zone": ["Midtown"]}
+    ).to_csv(csv_path, index=False)
+
+    with pytest.raises(SystemExit, match="colunas inesperadas"):
+        load_zones.load(csv_path)
