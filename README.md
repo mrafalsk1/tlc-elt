@@ -16,7 +16,7 @@ commands.
 ## Running it in five minutes
 
 ```bash
-git clone <your-repo>
+git clone https://github.com/mrafalsk1/tlc-elt.git
 cd tlc-elt
 cp .env.example .env
 make up      # Postgres + Airflow; also makes ./data writable for the container user
@@ -123,6 +123,45 @@ tips. Read the number as *"tips are only observable for card payments"* — repo
 | `not_null` on `is_valid_trip`, `pickup_zone`, `dropoff_zone` | the flags and lookups are always populated |
 | `assert_revenue_reconciliation` (singular) | staging revenue = fact revenue, tolerance zero |
 
+### Idempotency, measured
+
+The pipeline was replayed for the same three months: `ingest.py` deleted and reloaded each
+file, and `dbt build --vars '{"month": ...}'` ran once per month. The counts did not move:
+
+| Table | First run | Replay |
+|---|---|---|
+| `raw.yellow_trips` | 9,554,778 (3 files) | 9,554,778 (3 files) |
+| `marts.fct_trips` | 9,412,455 | 9,412,455 |
+
+`raw` replaces one month at a time by `_source_file`; `fct_trips` replaces it by `trip_id`
+(delete+insert). After the replay, `trip_id` grouped with `having count(*) > 1` returned
+zero rows, and each monthly `dbt build` finished 43/43.
+
+### A failing test, on purpose
+
+A quality gate is only real if bad data breaks the build. Inserting one trip with an
+unknown `payment_type` into `raw` is enough:
+
+```sql
+insert into raw.yellow_trips
+  (vendorid, tpep_pickup_datetime, tpep_dropoff_datetime, trip_distance,
+   pulocationid, dolocationid, payment_type, fare_amount, total_amount,
+   _source_file, _loaded_at)
+values
+  (1, '2024-01-01 08:00', '2024-01-01 08:20', 2.5,
+   142, 236, 99, 12.5, 15.0, 'dirty_demo.parquet', now());
+```
+
+```
+$ dbt test --select accepted_values_stg_yellow_trips_payment_type__0__1__2__3__4__5__6
+1 of 1 START test accepted_values_stg_yellow_trips_payment_type__0__1__2__3__4__5__6  [RUN]
+1 of 1 FAIL 1 accepted_values_stg_yellow_trips_payment_type__0__1__2__3__4__5__6  [FAIL 1 in 0.06s]
+Done. PASS=0 WARN=0 ERROR=1 SKIP=0 TOTAL=1
+```
+
+Deleting the row (`_source_file = 'dirty_demo.parquet'`) restores the clean state. The demo
+ran against a throwaway database, not the warehouse used for the results above.
+
 ## Limitations
 
 - **No streaming.** The pipeline is batch; the `Kafka` extension is documented but not built.
@@ -130,4 +169,21 @@ tips. Read the number as *"tips are only observable for card payments"* — repo
 - **Cash tips are unobservable**, so any tipping metric covers card payments only.
 - **2024 data only.** The Airflow DAG is monthly, but the seed loads three months.
 - **Single-node Postgres.** 3 GB fact table; a warehouse would be the production answer.
+
+## Next steps
+
+- **Materialize the intermediate model (or push the month filter into staging).** A
+  single-month incremental run still reads all 9.5M rows to rebuild the month; that is
+  where the ~110s goes.
+- **Schedule `dbt source freshness`.** Freshness is declared for both sources, but nothing
+  fails when a month arrives late.
+- **Streaming extension (Kafka).** A producer replaying trips into `raw.streaming_trips`;
+  documented as an extension, deliberately out of the current scope.
+- **Second, heterogeneous source.** The BCB SGS API (JSON, pagination, rate limits) to
+  exercise a non-Parquet ingestion path.
+- **Observability.** Elementary or freshness alerts on top of the existing dbt tests.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 
