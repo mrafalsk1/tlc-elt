@@ -8,7 +8,7 @@
 | F-04 | dbt intermediate (int_trips_enriched) | Nenhuma linha descartada; flags de qualidade | `dbt build` (testes de intermediate) | validada |
 | F-05 | dbt marts (fct_trips, dim_zones, agg_daily_demand, agg_payment_behavior) | trip_id único, relacionamentos, is_valid_trip | `dbt build` (testes de marts) | validada |
 | F-06 | Teste de reconciliação receita staging ↔ marts | Retorna 0 linhas quando receitas batem | dbt/tests/assert_revenue_reconciliation.sql | validada |
-| F-07 | CI do GitHub Actions (ruff + dbt build) | `make validate` passa no push | .github/workflows/ci.yml | em_andamento |
+| F-07 | CI do GitHub Actions (ruff + dbt build) | `make validate` passa no push | .github/workflows/ci.yml | validada |
 | F-08 | Geração de gráficos (gerar_graficos.py) | 3 PNGs em data/graficos/, textos em inglês | verificação manual dos PNGs; falta teste automatizado | em_andamento |
 
 Legenda de status: pendente | em_andamento | validada | bloqueada
@@ -19,3 +19,4 @@ Legenda de status: pendente | em_andamento | validada | bloqueada
 |------|--------|---------|-----------|
 | 2026-11-07 | Validação completa local (Python 3.11 + Postgres 16) | `CI=true make validate` | check_env OK, ruff All checks passed, pytest 7 passed, dbt build 43/43 PASS (0 erro) |
 | 2026-11-07 | Documentação dbt | `dbt docs generate --profiles-dir . --target ci` | catalog.json gerado |
+| 2026-11-07 | CI do GitHub Actions (run #7, commit `5fd5ce9`) | push em `main` | workflow `validate` concluído com sucesso (https://github.com/mrafalsk1/tlc-elt/actions/runs/42365555135) |
