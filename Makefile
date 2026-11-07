@@ -1,6 +1,26 @@
 # Atalhos do projeto. No Windows, use Git Bash ou WSL — ou copie os comandos crus no README.
 
-.PHONY: up down restart logs psql seed dbt test lint clean
+.PHONY: validate check-env lint test test-dbt build-check up down restart logs psql seed dbt clean
+
+validate: check-env lint test build-check
+	@echo "VALIDAÇÃO COMPLETA OK"
+
+check-env:
+	python scripts/check_env.py
+
+lint:
+	ruff check scripts dags
+
+test:
+	pytest tests/unit tests/integration -v
+
+test-dbt:
+	docker compose exec airflow bash -lc "cd /opt/airflow/dbt && dbt test --profiles-dir ."
+
+build-check:
+	dbt build --profiles-dir . --target ci
+
+# Infraestrutura (Docker)
 
 up:
 	# O container roda como uid 50000; sem isso o bind mount de ./data fica sem escrita.
@@ -27,12 +47,6 @@ seed:
 
 dbt:
 	docker compose exec airflow bash -lc "cd /opt/airflow/dbt && dbt build --profiles-dir ."
-
-test:
-	docker compose exec airflow bash -lc "cd /opt/airflow/dbt && dbt test --profiles-dir ."
-
-lint:
-	ruff check scripts dags
 
 clean:
 	docker compose down -v
