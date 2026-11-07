@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
 
     services:
@@ -23,6 +23,18 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+    # Variáveis exigidas por scripts/check_env.py (mesmos nomes de .env.example).
+    env:
+      CI: "true"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      WAREHOUSE_HOST: localhost
+      WAREHOUSE_PORT: "5432"
+      WAREHOUSE_DB: warehouse
+      WAREHOUSE_HOST_LOCAL: localhost
+      WAREHOUSE_PORT_LOCAL: "5432"
+
     steps:
       - uses: actions/checkout@v4
 
@@ -31,21 +43,11 @@ jobs:
           python-version: "3.11"
 
       - name: Install
-        run: pip install --quiet dbt-postgres==1.8.2 ruff
+        run: pip install --quiet -r requirements.txt -r requirements-dev.txt
 
-      - name: Lint
-        run: ruff check scripts dags
-
-      - name: Create warehouse and empty raw schema
-        env:
-          PGPASSWORD: postgres
-        run: |
-          psql -h localhost -U postgres -c "CREATE DATABASE warehouse;"
-          psql -h localhost -U postgres -d warehouse -f infra/ci_bootstrap.sql
-
-      - name: dbt build
-        working-directory: dbt
-        run: dbt build --profiles-dir . --target ci
+      # Único portão: check-env + lint + test + bootstrap do banco + dbt build.
+      - name: Validate
+        run: make validate
 
       - name: dbt docs
         working-directory: dbt

@@ -1,11 +1,18 @@
+#!/usr/bin/env python3
+"""Valida se as variáveis exigidas por .env.example estão definidas.
+
+Fora do CI, a ausência apenas avisa; com CI=true, é erro fatal.
+"""
+
 import os
 import sys
 
-REQUIRED = [
-    l.split("=")[0].strip()
-    for l in open(".env.example")
-    if l.strip() and not l.startswith("#")
-]
+with open(".env.example") as f:
+    REQUIRED = [
+        line.split("=")[0].strip()
+        for line in f
+        if line.strip() and not line.startswith("#")
+    ]
 
 missing = [v for v in REQUIRED if not os.getenv(v)]
 

@@ -1,8 +1,14 @@
 # Atalhos do projeto. No Windows, use Git Bash ou WSL — ou copie os comandos crus no README.
 
-.PHONY: validate check-env lint test test-dbt build-check up down restart logs psql seed dbt clean
+.PHONY: validate check-env lint test test-dbt db-bootstrap-ci build-check up down restart logs psql seed dbt clean
 
-validate: check-env lint test build-check
+# Conexão do Postgres de validação (mesmos defaults do CI e do serviço postgres:16).
+CI_PGHOST ?= localhost
+CI_PGPORT ?= 5432
+CI_PGUSER ?= postgres
+CI_PGPASSWORD ?= postgres
+
+validate: check-env lint test db-bootstrap-ci build-check
 	@echo "VALIDAÇÃO COMPLETA OK"
 
 check-env:
@@ -17,8 +23,13 @@ test:
 test-dbt:
 	docker compose exec airflow bash -lc "cd /opt/airflow/dbt && dbt test --profiles-dir ."
 
+# Cria o banco warehouse e o schema raw vazio, como o CI faz antes do dbt build.
+db-bootstrap-ci:
+	PGPASSWORD=$(CI_PGPASSWORD) psql -h $(CI_PGHOST) -p $(CI_PGPORT) -U $(CI_PGUSER) -c "CREATE DATABASE warehouse;"
+	PGPASSWORD=$(CI_PGPASSWORD) psql -h $(CI_PGHOST) -p $(CI_PGPORT) -U $(CI_PGUSER) -d warehouse -f infra/ci_bootstrap.sql
+
 build-check:
-	dbt build --profiles-dir . --target ci
+	cd dbt && dbt build --profiles-dir . --target ci
 
 # Infraestrutura (Docker)
 
