@@ -8,7 +8,7 @@ terraform {
     }
   }
 
-  # Sem backend remoto: o estado fica local e este modulo NAO e aplicado (ver docs/DECISIONS.md, D-07).
+  # Sem backend remoto: o estado fica local e este modulo NAO e aplicado (ver docs/DECISIONS.md, D-09).
   # O CI roda apenas `fmt -check` + `validate` (sem credenciais da AWS).
 }
 
@@ -29,6 +29,9 @@ locals {
 
   # Nome do bucket precisa ser globalmente unico: o account id resolve sem random provider.
   raw_bucket_name = "${var.project}-${var.environment}-raw-${data.aws_caller_identity.current.account_id}"
+
+  # Em prod, o RDS ganha deletion_protection e snapshot final; em dev, nao.
+  is_production = contains(["prod", "production"], var.environment)
 }
 
 data "aws_caller_identity" "current" {}

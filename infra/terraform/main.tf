@@ -73,10 +73,14 @@ resource "aws_db_instance" "warehouse" {
   vpc_security_group_ids = [aws_security_group.warehouse.id]
   publicly_accessible    = false
 
-  backup_retention_period    = var.db_backup_retention_days
+  backup_retention_period = var.db_backup_retention_days
+
+  # Protecao cresce com o ambiente: em prod nao ha destroy silencioso nem perda de snapshot.
+  deletion_protection       = local.is_production
+  skip_final_snapshot       = !local.is_production
+  final_snapshot_identifier = local.is_production ? "${var.project}-${var.environment}-final" : null
+
   auto_minor_version_upgrade = true
-  deletion_protection        = false # dev: permite destruir; em prod, true
-  skip_final_snapshot        = true
   apply_immediately          = false
 
   tags = { Name = "${var.project}-${var.environment}-warehouse" }
@@ -141,11 +145,14 @@ resource "aws_s3_bucket_policy" "require_tls" {
 resource "aws_s3_bucket_lifecycle_configuration" "raw" {
   bucket = aws_s3_bucket.raw.id
 
+  # So os Parquet grandes (um arquivo por mes) migram para IA: arquivo pequeno em IA custa mais.
   rule {
-    id     = "raw-tiering"
+    id     = "raw-parquet-tiering"
     status = "Enabled"
 
-    filter {}
+    filter {
+      prefix = "raw/yellow_trips/"
+    }
 
     transition {
       days          = 30
@@ -154,6 +161,17 @@ resource "aws_s3_bucket_lifecycle_configuration" "raw" {
 
     noncurrent_version_expiration {
       noncurrent_days = 90
+    }
+  }
+
+  rule {
+    id     = "abort-incomplete-multipart"
+    status = "Enabled"
+
+    filter {}
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
     }
   }
 }
@@ -168,6 +186,13 @@ data "aws_iam_policy_document" "glue_assume_role" {
       type        = "Service"
       identifiers = ["glue.amazonaws.com"]
     }
+
+    # Fecha o confused deputy: so o Glue desta conta pode assumir a role.
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
   }
 }
 
@@ -177,22 +202,67 @@ resource "aws_iam_role" "glue" {
   assume_role_policy = data.aws_iam_policy_document.glue_assume_role.json
 }
 
-resource "aws_iam_role_policy_attachment" "glue_service" {
-  role       = aws_iam_role.glue.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole"
-}
-
+# Policy propria em vez de AWSGlueServiceRole: a managed policy da glue:* e s3:ListAllMyBuckets
+# em Resource "*", o que nao e acesso minimo.
 data "aws_iam_policy_document" "glue_raw_access" {
   statement {
-    sid       = "ListRawBucket"
-    actions   = ["s3:ListBucket", "s3:GetBucketLocation"]
-    resources = [aws_s3_bucket.raw.arn]
+    sid = "GlueCatalogForCrawler"
+    actions = [
+      "glue:GetDatabase",
+      "glue:GetDatabases",
+      "glue:GetTable",
+      "glue:GetTables",
+      "glue:GetPartition",
+      "glue:GetPartitions",
+      "glue:CreateTable",
+      "glue:UpdateTable",
+      "glue:BatchCreatePartition",
+      "glue:BatchUpdatePartition",
+      "glue:GetCrawler",
+      "glue:UpdateCrawler",
+      "glue:StartCrawler",
+      "glue:GetCrawlerMetrics",
+      "glue:GetClassifier",
+      "glue:GetClassifiers",
+    ]
+    resources = [
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
+      aws_glue_catalog_database.raw.arn,
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${aws_glue_catalog_database.raw.name}/*",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:crawler/${var.project}-${var.environment}-raw",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:classifier/*",
+    ]
   }
 
   statement {
-    sid       = "ReadWriteRawObjects"
-    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-    resources = ["${aws_s3_bucket.raw.arn}/*"]
+    sid       = "CloudWatchLogsForCrawler"
+    actions   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = ["arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws-glue/*"]
+  }
+
+  statement {
+    sid       = "ListRawPrefix"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.raw.arn]
+
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values   = ["raw/*"]
+    }
+  }
+
+  statement {
+    sid       = "BucketLocation"
+    actions   = ["s3:GetBucketLocation"]
+    resources = [aws_s3_bucket.raw.arn]
+  }
+
+  # O crawler so le: sem PutObject/DeleteObject.
+  statement {
+    sid       = "ReadRawObjects"
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.raw.arn}/raw/*"]
   }
 }
 

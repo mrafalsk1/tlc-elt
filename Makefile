@@ -32,6 +32,7 @@ build-check:
 	cd dbt && dbt build --profiles-dir . --target ci
 
 # Terraform (infra/terraform): so fmt + validate. Sem credencial da AWS e sem apply.
+# `terraform fmt` recusa arquivos fora de *.tf/*.tfvars, entao terraform.tfvars.example e conferido na mao.
 
 TF ?= terraform
 
@@ -39,7 +40,7 @@ tf-fmt:
 	cd infra/terraform && $(TF) fmt -recursive
 
 tf-validate:
-	cd infra/terraform && $(TF) init -backend=false -input=false && $(TF) fmt -check -recursive && $(TF) validate
+	cd infra/terraform && $(TF) init -backend=false -input=false -lockfile=readonly && $(TF) fmt -check -recursive && $(TF) validate
 
 # Infraestrutura (Docker)
 

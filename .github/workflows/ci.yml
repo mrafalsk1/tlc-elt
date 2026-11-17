@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# Token do workflow fica só com leitura: nenhum job escreve no repositório.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -69,7 +73,7 @@ jobs:
           terraform_version: "1.9.8"
 
       - name: Init (sem backend)
-        run: terraform init -backend=false -input=false
+        run: terraform init -backend=false -input=false -lockfile=readonly
 
       - name: Format
         run: terraform fmt -check -recursive
