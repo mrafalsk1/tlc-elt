@@ -52,3 +52,27 @@ jobs:
       - name: dbt docs
         working-directory: dbt
         run: dbt docs generate --profiles-dir . --target ci
+
+  # Terraform: fmt + validate, sem credencial da AWS e sem apply (D-09).
+  terraform:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: infra/terraform
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Init (sem backend)
+        run: terraform init -backend=false -input=false
+
+      - name: Format
+        run: terraform fmt -check -recursive
+
+      - name: Validate
+        run: terraform validate

@@ -162,6 +162,15 @@ Done. PASS=0 WARN=0 ERROR=1 SKIP=0 TOTAL=1
 Deleting the row (`_source_file = 'dirty_demo.parquet'`) restores the clean state. The demo
 ran against a throwaway database, not the warehouse used for the results above.
 
+## Infrastructure as code
+
+`infra/terraform/` declares the same pipeline on AWS: an S3 bucket with versioning, encryption
+and a TLS-only bucket policy for the raw layer; a private RDS Postgres 16 as the warehouse
+(password created in Secrets Manager, no public endpoint); and a Glue catalog plus crawler over
+the raw prefix, with a least-privilege IAM role for both. The module is **validated, not
+applied** — `terraform fmt -check` and `terraform validate` run in CI, so nothing is created and
+`docker compose` stays the path you can actually run. See `infra/terraform/README.md`.
+
 ## Limitations
 
 - **No streaming.** The pipeline is batch; the `Kafka` extension is documented but not built.

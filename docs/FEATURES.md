@@ -10,6 +10,7 @@
 | F-06 | Teste de reconciliação receita staging ↔ marts | Retorna 0 linhas quando receitas batem | dbt/tests/assert_revenue_reconciliation.sql | validada |
 | F-07 | CI do GitHub Actions (ruff + dbt build) | `make validate` passa no push | .github/workflows/ci.yml | validada |
 | F-08 | Geração de gráficos (gerar_graficos.py) | 3 PNGs em data/graficos/, textos em inglês | tests/unit/test_graficos.py (3 PNGs válidos, nomes e queries) | validada |
+| F-09 | Modulo Terraform (S3 + RDS + Glue + IAM) | `fmt -check` e `validate` passam; nenhum recurso aplicado | job `terraform` do CI + `make tf-validate` | validada |
 
 Legenda de status: pendente | em_andamento | validada | bloqueada
 
@@ -23,3 +24,4 @@ Legenda de status: pendente | em_andamento | validada | bloqueada
 | 2026-11-07 | F-01/F-02/F-08: idempotência e gráficos (Python 3.11 + Postgres 16 limpo) | `make validate` | ruff All checks passed, pytest 15 passed (4 de integração), dbt build 43/43 PASS (0 erro) |
 | 2026-11-07 | CI do GitHub Actions (run #8, commit `ebe2ac1`) | push em `main` | workflow `build` concluído com sucesso (https://github.com/mrafalsk1/tlc-elt/actions/runs/42373813404) |
 | 2026-11-07 | Critérios §8: idempotência do DAG e demo de dado sujo | replay de 3 meses + `dbt test` com linha suja | raw 9.554.778→9.554.778, fct_trips 9.412.455→9.412.455, 0 `trip_id` duplicados; `accepted_values` falha com `payment_type=99` |
+| 2026-11-17 | Terraform 1.9.8 / provider aws 5.100.0 | `terraform init -backend=false && terraform fmt -check -recursive && terraform validate` | fmt OK; "Success! The configuration is valid." |

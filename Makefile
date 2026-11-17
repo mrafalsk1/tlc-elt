@@ -1,6 +1,6 @@
 # Atalhos do projeto. No Windows, use Git Bash ou WSL — ou copie os comandos crus no README.
 
-.PHONY: validate check-env lint test test-dbt db-bootstrap-ci build-check up down restart logs psql seed dbt clean
+.PHONY: validate check-env lint test test-dbt db-bootstrap-ci build-check tf-fmt tf-validate up down restart logs psql seed dbt clean
 
 # Conexão do Postgres de validação (mesmos defaults do CI e do serviço postgres:16).
 CI_PGHOST ?= localhost
@@ -30,6 +30,16 @@ db-bootstrap-ci:
 
 build-check:
 	cd dbt && dbt build --profiles-dir . --target ci
+
+# Terraform (infra/terraform): so fmt + validate. Sem credencial da AWS e sem apply.
+
+TF ?= terraform
+
+tf-fmt:
+	cd infra/terraform && $(TF) fmt -recursive
+
+tf-validate:
+	cd infra/terraform && $(TF) init -backend=false -input=false && $(TF) fmt -check -recursive && $(TF) validate
 
 # Infraestrutura (Docker)
 

@@ -35,3 +35,9 @@
 ## D-08: Carga do lookup de zonas com truncate+insert
 - load_zones.py usa TRUNCATE + INSERT, não `if_exists="replace"`.
 - Motivo: mantém a estrutura da tabela (tipos, PK, índices, grants) e continua idempotente; o `replace` derrubava e recriava a tabela a cada carga.
+
+## D-09: Terraform validado, nao aplicado
+- `infra/terraform/` descreve o mesmo pipeline na AWS: bucket S3 da camada raw, RDS Postgres 16 como warehouse, Glue catalog + crawler sobre o prefixo `raw/` e a role de IAM dos dois.
+- So `terraform fmt -check` + `terraform validate` rodam (job `terraform` do CI, sem credencial e sem state remoto). Nenhum recurso e criado.
+- Motivo: o objetivo e demonstrar IaC com revisao e portao de CI, nao hospedar o projeto. Rodar continua sendo `docker compose` (D-06); aplicar custaria ~US$ 15-20/mes de RDS.
+- A senha do RDS usa `manage_master_user_password` (Secrets Manager), entao nao existe segredo em codigo nem em `terraform.tfvars`.

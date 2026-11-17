@@ -1,0 +1,8 @@
+# Copie para terraform.tfvars se for rodar `plan` localmente.
+# Nao coloque segredo aqui: a senha do RDS e gerada pela AWS e guardada no Secrets Manager.
+
+aws_region          = "us-east-1"
+project             = "tlc-elt"
+environment         = "dev"
+allowed_cidr_blocks = ["10.42.0.0/16"]
+db_instance_class   = "db.t4g.micro"
