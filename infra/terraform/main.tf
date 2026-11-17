@@ -145,19 +145,27 @@ resource "aws_s3_bucket_policy" "require_tls" {
 resource "aws_s3_bucket_lifecycle_configuration" "raw" {
   bucket = aws_s3_bucket.raw.id
 
-  # So os Parquet grandes (um arquivo por mes) migram para IA: arquivo pequeno em IA custa mais.
+  # Parquet e um arquivo por mes (~50 MB), entao todo o prefixo raw/ e elegivel para IA.
   rule {
     id     = "raw-parquet-tiering"
     status = "Enabled"
 
     filter {
-      prefix = "raw/yellow_trips/"
+      prefix = "raw/"
     }
 
     transition {
       days          = 30
       storage_class = "STANDARD_IA"
     }
+  }
+
+  # Versao antiga de qualquer objeto do bucket expira: sem isso o versionamento cresce sem fim.
+  rule {
+    id     = "expire-noncurrent-versions"
+    status = "Enabled"
+
+    filter {}
 
     noncurrent_version_expiration {
       noncurrent_days = 90
@@ -216,6 +224,8 @@ data "aws_iam_policy_document" "glue_raw_access" {
       "glue:GetPartitions",
       "glue:CreateTable",
       "glue:UpdateTable",
+      "glue:CreatePartition",
+      "glue:UpdatePartition",
       "glue:BatchCreatePartition",
       "glue:BatchUpdatePartition",
       "glue:GetCrawler",

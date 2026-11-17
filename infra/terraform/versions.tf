@@ -31,7 +31,8 @@ locals {
   raw_bucket_name = "${var.project}-${var.environment}-raw-${data.aws_caller_identity.current.account_id}"
 
   # Em prod, o RDS ganha deletion_protection e snapshot final; em dev, nao.
-  is_production = contains(["prod", "production"], var.environment)
+  # lower() evita que "Prod" caia em dev por comparacao case-sensitive.
+  is_production = contains(["prod", "production"], lower(var.environment))
 }
 
 data "aws_caller_identity" "current" {}

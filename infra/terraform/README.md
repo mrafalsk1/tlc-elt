@@ -11,7 +11,7 @@ forma de rodar o projeto (ver `D-06` e `D-09` em `docs/DECISIONS.md`).
 
 | Recurso | Equivalente local | Decisão |
 |---|---|---|
-| `aws_s3_bucket.raw` | `./data/raw` | versionamento ligado, AES256, bloqueio de acesso público, política que nega HTTP sem TLS, lifecycle para `STANDARD_IA` em 30 dias (só o prefixo dos Parquet grandes) |
+| `aws_s3_bucket.raw` | `./data/raw` | versionamento ligado, AES256, bloqueio de acesso público, política que nega HTTP sem TLS, lifecycle para `STANDARD_IA` em 30 dias no prefixo `raw/` e expiração de versões antigas em 90 dias |
 | `aws_db_instance.warehouse` | serviço `postgres` | Postgres 16, `gp3` cifrado, sem acesso público, `manage_master_user_password` (a senha nasce no Secrets Manager, não no código), `deletion_protection` e snapshot final só quando `environment = "prod"` |
 | `aws_vpc` + 2 subnets privadas + SG | rede do compose | RDS sem IP público; 5432 liberado só para `allowed_cidr_blocks` |
 | `aws_glue_catalog_database` + `aws_glue_crawler` | — | crawler sobre `s3://<bucket>/raw/`, catálogo e prefixo de tabela `raw_` |
@@ -21,11 +21,15 @@ forma de rodar o projeto (ver `D-06` e `D-09` em `docs/DECISIONS.md`).
 
 ```bash
 cd infra/terraform
-terraform init -backend=false -lockfile=readonly   # baixa o provider; não precisa de credencial AWS
+terraform init -backend=false -input=false -lockfile=readonly   # baixa o provider; sem credencial AWS
 terraform fmt -check -recursive
-terraform fmt -check terraform.tfvars.example
 terraform validate
 ```
+
+> `terraform fmt` só aceita `*.tf`, `*.tfvars` e `*.tftest.hcl`, então o `terraform.tfvars.example`
+> não entra no `-recursive`. Para checá-lo: `terraform fmt -check - < terraform.tfvars.example`.
+> O lock file tem hash de `linux_amd64` (é o que o CI usa); em Windows nativo, rode
+> `terraform providers lock -platform=windows_amd64` antes.
 
 No `make validate` isso não entra de propósito: o resto do projeto roda com Python + Docker, e
 exigir Terraform instalado quebraria a validação de quem só quer rodar o pipeline. O portão do
@@ -57,7 +61,7 @@ Para destruir: `terraform destroy`. O bucket tem `force_destroy = false` **e ver
 
 ## O que falta para virar infraestrutura de verdade
 
-1. Backend remoto (S3 + DynamoDB) e `-lockfile=readonly` já no `init`.
+1. Backend remoto (S3 + DynamoDB para lock) — hoje o state é local e não versionado.
 2. Módulos separados (`network`, `warehouse`, `lake`) em vez de um arquivo `main.tf`.
 3. `environments/dev` e `environments/prod` com `tfvars` e state distintos.
 4. KMS CMK própria por ambiente (hoje a cifra usa chaves gerenciadas pela AWS) e logging de acesso
