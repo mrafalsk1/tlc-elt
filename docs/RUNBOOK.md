@@ -44,7 +44,15 @@ Ordem das tasks: `dbt_source_freshness` → `ingest_raw` → `dbt_build`.
 - Não usamos `sla` do Airflow: no Airflow 2.x o SLA é relativo ao `logical_date`, que num
   DAG mensal (`0 6 1 * *`) fica ~31 dias no passado. Qualquer SLA curto dispararia em todo run.
 - O controle é `execution_timeout` por task (10/30/60 min) + `dagrun_timeout` do DAG (3 h).
-  Estouro de timeout falha a task e gera `type: task_failure` no `alerts.jsonl`.
+- Dois caminhos de alerta, conforme o que morreu:
+  - falha de task (inclusive estouro do `execution_timeout`) → `on_failure_callback` de task →
+    `type: task_failure`;
+  - run inteiro morto pelo `dagrun_timeout` → `on_failure_callback` do DAG (contexto de DagRun,
+    sem task) → `type: dagrun_failure`. As tasks ainda não terminadas ficam `skipped`.
+- `dagrun_timeout` de 3 h é um **teto deliberado, menor que o pior caso teórico**: com
+  retries completos o run pode levar até 345 min (3 tasks, retries 2, backoff até 30 min).
+  O teto existe para um run travado não ocupar o slot mensal por dias; se ele estourar em
+  um run normal, é sinal para investigar, não para aumentar o teto sem medir.
 - Se um run estiver parado na UI: verificar a task em execução, o log e a linha de falha
   correspondente em `alerts.jsonl`. Ver `DECISIONS.md` D-10.
 

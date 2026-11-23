@@ -176,6 +176,57 @@ def test_notify_webhook_failure_log_hides_url(monkeypatch, caplog):
 
     assert "OSError" in caplog.text
     assert "segredo-token-123" not in caplog.text
+    assert "connection refused" not in caplog.text
+
+
+def test_notify_webhook_log_hides_secret_in_exception_message(monkeypatch, caplog):
+    monkeypatch.setenv("ALERT_WEBHOOK_URL", "http://hook.local/segredo-token-456")
+
+    def fail(*args, **kwargs):
+        raise ValueError("unknown url type: 'http://hook.local/segredo-token-456'")
+
+    monkeypatch.setattr(alerting.urllib.request, "urlopen", fail)
+
+    with caplog.at_level("WARNING", logger="alerting"):
+        alerting.notify_webhook({"type": "x"})
+
+    assert "ValueError" in caplog.text
+    assert "segredo-token-456" not in caplog.text
+
+
+def test_alert_dagrun_failure_writes_one_line(alerts_file):
+    dag_run = SimpleNamespace(
+        dag_id="elt_tlc",
+        run_id="scheduled__2026-11-01T06:00:00+00:00",
+        logical_date=datetime(2026, 11, 1, 6, tzinfo=timezone.utc),
+        state="failed",
+        start_date=datetime(2026, 11, 1, 6, 1, tzinfo=timezone.utc),
+    )
+    context = {"dag": SimpleNamespace(dag_id="elt_tlc"), "dag_run": dag_run, "reason": "timed_out"}
+
+    alerting.alert_dagrun_failure(context)
+
+    (row,) = _read_lines(alerts_file)
+    assert set(row) == FIELDS
+    assert row["type"] == "dagrun_failure"
+    assert row["severity"] == "critical"
+    assert row["dag_id"] == "elt_tlc"
+    assert row["task_id"] is None
+    assert row["run_id"] == "scheduled__2026-11-01T06:00:00+00:00"
+    assert row["logical_date"] == "2026-11-01T06:00:00+00:00"
+    assert row["message"] == "run falhou (timed_out)"
+    assert row["details"]["start_date"] == "2026-11-01T06:01:00+00:00"
+
+
+def test_alert_dagrun_failure_tolerates_incomplete_context(alerts_file):
+    alerting.alert_dagrun_failure({})
+
+    (row,) = _read_lines(alerts_file)
+    assert row["type"] == "dagrun_failure"
+    assert row["dag_id"] is None
+    assert row["run_id"] is None
+    assert row["logical_date"] is None
+    assert row["message"] == "run falhou"
 
 
 def test_emit_never_raises_when_jsonl_write_fails(monkeypatch, caplog):

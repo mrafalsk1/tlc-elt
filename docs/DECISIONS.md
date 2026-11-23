@@ -45,5 +45,7 @@
 ## D-10: Controle de atraso sem sla do Airflow (dagrun_timeout + execution_timeout)
 - O DAG elt_tlc nao usa sla nem sla_miss_callback.
 - Motivo: no Airflow 2.x o SLA e contado a partir do logical_date. Num DAG mensal (0 6 1 * *) o run so dispara no fim do intervalo, entao o logical_date fica ~31 dias no passado e qualquer SLA curto dispara em todo run (alerta vira ruido).
-- Controle adotado: execution_timeout por task (10/30/60 min) + dagrun_timeout do DAG (3 h). Estouro falha a task e vai para alerting.alert_failure.
+- Controle adotado: execution_timeout por task (10/30/60 min) + dagrun_timeout do DAG (3 h).
+- Alertas: falha de task vai para alerting.alert_failure (on_failure_callback de task). Run morto por dagrun_timeout vai para alerting.alert_dagrun_failure (on_failure_callback do DAG, contexto de DagRun; confirmado no scheduler do Airflow 2.10.5, que cria o callback com msg="timed_out"). dagrun_timeout NAO dispara o callback de task.
+- dagrun_timeout de 3 h e um teto deliberado, menor que o pior caso teorico (345 min com retries completos): evita que um run travado ocupe o slot mensal por dias. Estouro em run normal = investigar, nao aumentar o teto sem medir.
 - Revisitar se o DAG passar a ser diario/horario: ai sla volta a ter sentido.

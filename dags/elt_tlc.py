@@ -10,9 +10,11 @@ Rodar o mesmo mês duas vezes não duplica dados:
   - ingest.py faz DELETE + INSERT por _source_file
   - fct_trips é delete+insert com unique_key = trip_id (hash da chave natural)
 
-Alertas: falha de task vai para alerting.alert_failure (via default_args).
-Grava em data/alerts/alerts.jsonl. Controle de atraso: execution_timeout por
-task + dagrun_timeout no DAG (sla não é usado; ver docs/DECISIONS.md D-10).
+Alertas (grava em data/alerts/alerts.jsonl):
+  - falha de task → alerting.alert_failure (on_failure_callback em default_args);
+  - run morto por dagrun_timeout → alerting.alert_dagrun_failure (on_failure_callback do DAG).
+Controle de atraso: execution_timeout por task + dagrun_timeout (3 h) no DAG.
+sla não é usado (ver docs/DECISIONS.md D-10).
 """
 
 from __future__ import annotations
@@ -42,6 +44,7 @@ MONTH = "{{ (data_interval_start).strftime('%Y-%m') }}"
     catchup=False,
     max_active_runs=1,
     dagrun_timeout=pendulum.duration(hours=3),
+    on_failure_callback=alerting.alert_dagrun_failure,
     default_args={
         "retries": 2,
         "retry_delay": pendulum.duration(minutes=5),

@@ -62,11 +62,10 @@ def notify_webhook(entry: dict[str, Any]) -> None:
         with urllib.request.urlopen(req, timeout=WEBHOOK_TIMEOUT_S):
             pass
     except Exception as exc:  # noqa: BLE001 - webhook nunca pode derrubar o DAG
-        # A URL não é logada: pode conter token. Só o tipo e a mensagem curta.
+        # Só o tipo: ValueError("unknown url type: '<url>'") pode conter o segredo.
         log.warning(
-            "Falha ao enviar alerta para o webhook (%s: %s); alerta segue no JSONL",
+            "Falha ao enviar alerta para o webhook (%s); alerta segue no JSONL",
             type(exc).__name__,
-            str(exc)[:200],
         )
 
 
@@ -77,6 +76,36 @@ def _emit(entry: dict[str, Any]) -> None:
     except Exception as exc:  # noqa: BLE001 - alerta nunca mascara a falha da task
         log.warning("Falha ao gravar alerta em JSONL (%s: %s)", type(exc).__name__, str(exc)[:200])
     notify_webhook(entry)
+
+
+def alert_dagrun_failure(context: dict[str, Any]) -> None:
+    # Callback de DAG: roda quando o run inteiro falha, p.ex. por dagrun_timeout
+    # (nesse caso não há task_instance no contexto). Tolerante a dados faltando.
+    dag = context.get("dag")
+    dag_run = context.get("dag_run")
+    run_id = context.get("run_id") or getattr(dag_run, "run_id", None)
+    logical_date = context.get("logical_date") or getattr(dag_run, "logical_date", None)
+    dag_id = getattr(dag, "dag_id", None) or getattr(dag_run, "dag_id", None)
+    reason = context.get("reason") or context.get("msg")
+    _emit(
+        {
+            "type": "dagrun_failure",
+            "severity": "critical",
+            "dag_id": dag_id,
+            "task_id": None,
+            "run_id": run_id,
+            "logical_date": logical_date.isoformat() if logical_date else None,
+            "message": f"run falhou ({reason})" if reason else "run falhou",
+            "details": {
+                "state": str(getattr(dag_run, "state", None)),
+                "start_date": _iso(getattr(dag_run, "start_date", None)),
+            },
+        }
+    )
+
+
+def _iso(value: Any) -> str | None:
+    return value.isoformat() if hasattr(value, "isoformat") else None
 
 
 def alert_failure(context: dict[str, Any]) -> None:

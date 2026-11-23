@@ -69,6 +69,11 @@ def test_dagrun_timeout_is_three_hours():
     assert _duration_seconds(_dag_call()["dagrun_timeout"]) == 3 * 3600
 
 
+def test_dag_level_failure_callback_is_alert_dagrun_failure():
+    value = _dag_call()["on_failure_callback"]
+    assert ast.unparse(value) == "alerting.alert_dagrun_failure"
+
+
 def test_sla_is_not_used_anywhere():
     tree = _tree()
     assert "sla_miss_callback" not in _dag_call()
