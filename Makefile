@@ -1,6 +1,6 @@
 # Atalhos do projeto. No Windows, use Git Bash ou WSL — ou copie os comandos crus no README.
 
-.PHONY: validate check-env lint test test-dbt db-bootstrap-ci build-check tf-fmt tf-validate up down restart logs psql seed dbt clean
+.PHONY: validate check-env lint test test-dbt db-bootstrap-ci build-check quality tf-fmt tf-validate up down restart logs psql seed dbt clean
 
 # Conexão do Postgres de validação (mesmos defaults do CI e do serviço postgres:16).
 CI_PGHOST ?= localhost
@@ -16,6 +16,12 @@ check-env:
 
 lint:
 	ruff check scripts dags
+
+# Qualidade com Great Expectations: NÃO entra em validate (exige .venv-quality com GX).
+# Roda sobre as fixtures: deve detectar as linhas sujas e sair com código 1.
+QUALITY_PY ?= .venv-quality/bin/python
+quality:
+	$(QUALITY_PY) scripts/quality/run_quality.py --input tests/fixtures/trips_sample.csv --zones tests/fixtures/taxi_zones_sample.csv --out data/alerts/alerts.jsonl
 
 test:
 	pytest tests/unit tests/integration -v

@@ -137,6 +137,42 @@ Grão: dia × zona. Apenas is_valid_trip.
 
 Grão: método × faixa de gorjeta. Apenas is_valid_trip.
 
+## 10. Expectativas de qualidade (schema cru, `scripts/quality/`)
+
+Aplicadas ao Parquet cru (nomes do Parquet, CamelCase, antes do dbt). O dbt normaliza os nomes depois (`staging.stg_yellow_trips`). Regras em `scripts/quality/rules.py`; execução com Great Expectations 1.25.0 em `gx_runner.py` (`.venv-quality`, fora do `requirements.txt`).
+
+| id | coluna | regra | severidade |
+|----|--------|-------|------------|
+| fare_not_null | fare_amount | não nulo | critical |
+| fare_between | fare_amount | entre 0 e 500 | critical |
+| distance_not_null | trip_distance | não nulo | critical |
+| distance_between | trip_distance | entre 0 e 200 milhas | warning |
+| dropoff_after_pickup | tpep_dropoff/pickup | dropoff > pickup | critical |
+| pickup_zone_fk | PULocationID | existe no lookup de zonas | critical |
+| dropoff_zone_fk | DOLocationID | existe no lookup de zonas | critical |
+| payment_in_set | payment_type | em 0–6 | warning |
+| batch_rows_between | (lote) | contagem ≥ 1 (máximo ainda não medido) | critical |
+
+`payment_type` aceita 0–6 porque o contrato do dbt (`_models.yml`) define 0 e 5 como "desconhecido". O plano dizia 1–6; seguimos o dbt para não divergir.
+
+**Medição real: Parquet `yellow_tripdata_2024-01` (2.964.624 linhas), `run_quality.py`, 2026-11-23**
+
+| id | violações | observação |
+|----|-----------|------------|
+| fare_not_null | 0 | |
+| fare_between | 37.494 | 37.448 negativos + 46 acima de 500 (decomposição em pandas) |
+| distance_not_null | 0 | |
+| distance_between | 31 | todas > 200 milhas; nenhuma negativa |
+| dropoff_after_pickup | 870 | 814 com dropoff == pickup + 56 com dropoff < pickup |
+| pickup_zone_fk | 0 | |
+| dropoff_zone_fk | 0 | |
+| payment_in_set | 0 | |
+| batch_rows_between | 0 | |
+
+Resultado: exit 1 (critical falhou). Tempo do run: 8 s. Não medido ainda: o máximo de linhas por lote e a distribuição dos meses 2024-02/03 (medir antes de fixar `batch_rows_between`).
+
+Leitura: `fare_between` e `dropoff_after_pickup` concentram quase todas as violações. Ficam como critical por contrato; decidir se negativos e zero viram filtro no dbt (já existe `fare_amount > 0` em `stg_yellow_trips`) é tarefa de modelagem, não desta lacuna.
+
 ## Regras de mudança de schema
 
 - Adição de coluna: classificar como aditiva; atualizar este contrato e testes de contrato.

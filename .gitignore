@@ -4,6 +4,7 @@ data/
 *.parquet
 *.csv
 !dbt/seeds/*.csv
+!tests/fixtures/*.csv
 
 # Python
 __pycache__/

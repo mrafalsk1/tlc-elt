@@ -49,3 +49,11 @@
 - Alertas: falha de task vai para alerting.alert_failure (on_failure_callback de task). Run morto por dagrun_timeout vai para alerting.alert_dagrun_failure (on_failure_callback do DAG, contexto de DagRun; confirmado no scheduler do Airflow 2.10.5, que cria o callback com msg="timed_out"). dagrun_timeout NAO dispara o callback de task.
 - dagrun_timeout de 3 h e um teto deliberado, menor que o pior caso teorico (345 min com retries completos): evita que um run travado ocupe o slot mensal por dias. Estouro em run normal = investigar, nao aumentar o teto sem medir.
 - Revisitar se o DAG passar a ser diario/horario: ai sla volta a ter sentido.
+
+## D-11: Qualidade com Great Expectations 1.x, em venv separado
+- Regras em Pandas puro (scripts/quality/rules.py, testadas sem GX); o GX so roda em scripts/quality/gx_runner.py, unico modulo que importa great_expectations.
+- Versao: great-expectations==1.25.0 (fluent API), freeze em requirements-quality.txt, venv .venv-quality (Python 3.12). Nao entra em requirements.txt.
+- Motivo: validate e CI nao podem depender de GX (peso e instalacao); a checagem de qualidade e um passo a parte do ELT. A fluent API 1.x funcionou, entao nao foi preciso descer para 0.18.19.
+- Regras sobre o schema cru (nomes do Parquet). O dbt normaliza depois.
+- payment_type aceita 0-6 (contrato do dbt), nao 1-6 como o plano sugeria.
+- Nao roda sobre os 9,5 M no CI: run manual, contagens registradas em DATA_CONTRACTS.md secao 10.
