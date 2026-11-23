@@ -36,6 +36,9 @@ FIELDS = (
 
 
 def write_alert(entry: dict[str, Any], path: str | None = None) -> None:
+    # Cada linha é um único write() em modo "a" (O_APPEND): para linhas pequenas
+    # o append é atômico no POSIX. Concorrência alta ou FS de rede (SMB/NFS) não
+    # têm essa garantia; isso é limite conhecido, não tratado aqui.
     target = Path(path or os.getenv("ALERTS_FILE") or DEFAULT_ALERTS_FILE)
     row = {key: entry.get(key) for key in FIELDS}
     row["ts"] = datetime.now(UTC).isoformat()
@@ -58,12 +61,21 @@ def notify_webhook(entry: dict[str, Any]) -> None:
     try:
         with urllib.request.urlopen(req, timeout=WEBHOOK_TIMEOUT_S):
             pass
-    except Exception:
-        log.exception("Falha ao enviar alerta para o webhook; alerta continua no JSONL")
+    except Exception as exc:  # noqa: BLE001 - webhook nunca pode derrubar o DAG
+        # A URL não é logada: pode conter token. Só o tipo e a mensagem curta.
+        log.warning(
+            "Falha ao enviar alerta para o webhook (%s: %s); alerta segue no JSONL",
+            type(exc).__name__,
+            str(exc)[:200],
+        )
 
 
 def _emit(entry: dict[str, Any]) -> None:
-    write_alert(entry)
+    # Nunca levanta: alerta quebrado não pode mascarar a falha original da task.
+    try:
+        write_alert(entry)
+    except Exception as exc:  # noqa: BLE001 - alerta nunca mascara a falha da task
+        log.warning("Falha ao gravar alerta em JSONL (%s: %s)", type(exc).__name__, str(exc)[:200])
     notify_webhook(entry)
 
 
@@ -88,22 +100,3 @@ def alert_failure(context: dict[str, Any]) -> None:
         }
     )
 
-
-def alert_sla_miss(dag, task_list, blocking_task_list, slas, blocking_tis) -> None:
-    for sla in slas:
-        execution_date = getattr(sla, "execution_date", None)
-        _emit(
-            {
-                "type": "sla_miss",
-                "severity": "warning",
-                "dag_id": getattr(sla, "dag_id", dag.dag_id),
-                "task_id": sla.task_id,
-                "run_id": None,
-                "logical_date": execution_date.isoformat() if execution_date else None,
-                "message": f"SLA perdido na task {sla.task_id}",
-                "details": {
-                    "sla_timestamp": str(getattr(sla, "timestamp", "")),
-                    "description": getattr(sla, "description", None),
-                },
-            }
-        )

@@ -31,6 +31,9 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
       DBT_PROFILES_DIR: /opt/airflow/dbt
+      # Alertas: vazio = só JSONL (webhook desligado; ALERTS_FILE vazio = caminho padrão).
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      ALERTS_FILE: ${ALERTS_FILE:-}
       # dbt-core fixado: a imagem resolve para 2.0.0rc9, que não tem adapter postgres.
       _PIP_ADDITIONAL_REQUIREMENTS: "dbt-core==1.8.2 dbt-postgres==1.8.2 pandas pyarrow requests SQLAlchemy"
     command: standalone

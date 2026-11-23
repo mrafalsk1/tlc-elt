@@ -10,9 +10,9 @@ Rodar o mesmo mês duas vezes não duplica dados:
   - ingest.py faz DELETE + INSERT por _source_file
   - fct_trips é delete+insert com unique_key = trip_id (hash da chave natural)
 
-Alertas: falha de task vai para alerting.alert_failure (via default_args, porque
-o callback é por task); SLA perdido vai para alerting.alert_sla_miss (no DAG).
-Ambos gravam em data/alerts/alerts.jsonl. Ver docs/RUNBOOK.md.
+Alertas: falha de task vai para alerting.alert_failure (via default_args).
+Grava em data/alerts/alerts.jsonl. Controle de atraso: execution_timeout por
+task + dagrun_timeout no DAG (sla não é usado; ver docs/DECISIONS.md D-10).
 """
 
 from __future__ import annotations
@@ -34,13 +34,6 @@ DBT_DIR = "/opt/airflow/dbt"
 
 MONTH = "{{ (data_interval_start).strftime('%Y-%m') }}"
 
-# SLA inicial = execution_timeout + 50 %. Ajustar quando houver p95 de 3 runs
-# reais (medir; registrar em docs/RUNBOOK.md). Não é número de SLA aprovado.
-SLA_FRESHNESS = pendulum.duration(minutes=15)  # timeout 10 min
-SLA_INGEST = pendulum.duration(minutes=45)  # timeout 30 min
-SLA_TRANSFORM = pendulum.duration(minutes=90)  # timeout 60 min
-
-
 @dag(
     dag_id="elt_tlc",
     description="Ingestão + transformação (dbt) dos dados de táxi de NYC",
@@ -48,6 +41,7 @@ SLA_TRANSFORM = pendulum.duration(minutes=90)  # timeout 60 min
     start_date=pendulum.datetime(2024, 1, 1, tz="America/Sao_Paulo"),
     catchup=False,
     max_active_runs=1,
+    dagrun_timeout=pendulum.duration(hours=3),
     default_args={
         "retries": 2,
         "retry_delay": pendulum.duration(minutes=5),
@@ -55,7 +49,6 @@ SLA_TRANSFORM = pendulum.duration(minutes=90)  # timeout 60 min
         "max_retry_delay": pendulum.duration(minutes=30),
         "on_failure_callback": alerting.alert_failure,
     },
-    sla_miss_callback=alerting.alert_sla_miss,
     tags=["elt", "tlc"],
 )
 def elt_tlc():
@@ -66,14 +59,12 @@ def elt_tlc():
             f"dbt source freshness --profiles-dir ."
         ),
         execution_timeout=pendulum.duration(minutes=10),
-        sla=SLA_FRESHNESS,
     )
 
     ingest = BashOperator(
         task_id="ingest_raw",
         bash_command=f"python /opt/airflow/scripts/ingest.py --months {MONTH}",
         execution_timeout=pendulum.duration(minutes=30),
-        sla=SLA_INGEST,
     )
 
     transform = BashOperator(
@@ -83,7 +74,6 @@ def elt_tlc():
             f"dbt build --profiles-dir . --vars '{{\"month\": \"{MONTH}\"}}'"
         ),
         execution_timeout=pendulum.duration(minutes=60),
-        sla=SLA_TRANSFORM,
     )
 
     freshness >> ingest >> transform

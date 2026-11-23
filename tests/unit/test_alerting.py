@@ -117,33 +117,77 @@ def test_alert_failure_calls_webhook_with_same_payload(alerts_file, monkeypatch)
     assert sent[0]["message"] == "task falhou sem exceção registrada"
 
 
-def test_alert_sla_miss_writes_one_row_per_task(alerts_file):
-    dag = SimpleNamespace(dag_id="elt_tlc")
-    slas = [
-        SimpleNamespace(
-            dag_id="elt_tlc",
-            task_id="ingest_raw",
-            execution_date=datetime(2026, 11, 1, tzinfo=timezone.utc),
-            timestamp=datetime(2026, 11, 1, 1, tzinfo=timezone.utc),
-            description=None,
-        ),
-        SimpleNamespace(
-            dag_id="elt_tlc",
-            task_id="dbt_build",
-            execution_date=datetime(2026, 11, 1, tzinfo=timezone.utc),
-            timestamp=datetime(2026, 11, 1, 2, tzinfo=timezone.utc),
-            description="atrasou",
-        ),
-    ]
+def test_alert_failure_without_run_id_or_logical_date(alerts_file):
+    ti = SimpleNamespace(dag_id="elt_tlc", task_id="dbt_build")
 
-    alerting.alert_sla_miss(dag, [], [], slas, [])
+    alerting.alert_failure({"task_instance": ti, "exception": RuntimeError("boom")})
 
-    rows = _read_lines(alerts_file)
-    assert [r["task_id"] for r in rows] == ["ingest_raw", "dbt_build"]
-    for row in rows:
-        assert set(row) == FIELDS
-        assert row["type"] == "sla_miss"
-        assert row["severity"] == "warning"
-        assert row["dag_id"] == "elt_tlc"
-        assert row["logical_date"] == "2026-11-01T00:00:00+00:00"
-    assert rows[1]["details"]["description"] == "atrasou"
+    (row,) = _read_lines(alerts_file)
+    assert set(row) == FIELDS
+    assert row["run_id"] is None
+    assert row["logical_date"] is None
+    assert row["message"] == "boom"
+    assert row["details"] == {"try_number": None, "max_tries": None, "log_url": None}
+
+
+class _FakeResponse:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def test_notify_webhook_posts_json_with_timeout(monkeypatch):
+    monkeypatch.setenv("ALERT_WEBHOOK_URL", "http://hook.local/x")
+    captured = {}
+
+    def fake_urlopen(req, timeout):
+        captured["method"] = req.get_method()
+        captured["content_type"] = req.get_header("Content-type")
+        captured["url"] = req.full_url
+        captured["body"] = json.loads(req.data.decode("utf-8"))
+        captured["timeout"] = timeout
+        return _FakeResponse()
+
+    monkeypatch.setattr(alerting.urllib.request, "urlopen", fake_urlopen)
+    entry = {"type": "task_failure", "task_id": "ingest_raw"}
+
+    alerting.notify_webhook(entry)
+
+    assert captured["method"] == "POST"
+    assert captured["content_type"] == "application/json"
+    assert captured["url"] == "http://hook.local/x"
+    assert captured["body"] == entry
+    assert captured["timeout"] == 5
+
+
+def test_notify_webhook_failure_log_hides_url(monkeypatch, caplog):
+    secret_url = "http://hook.local/segredo-token-123"
+    monkeypatch.setenv("ALERT_WEBHOOK_URL", secret_url)
+
+    def fail(*args, **kwargs):
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(alerting.urllib.request, "urlopen", fail)
+
+    with caplog.at_level("WARNING", logger="alerting"):
+        alerting.notify_webhook({"type": "x"})
+
+    assert "OSError" in caplog.text
+    assert "segredo-token-123" not in caplog.text
+
+
+def test_emit_never_raises_when_jsonl_write_fails(monkeypatch, caplog):
+    monkeypatch.delenv("ALERT_WEBHOOK_URL", raising=False)
+
+    def broken(entry, path=None):
+        raise PermissionError("sem escrita")
+
+    monkeypatch.setattr(alerting, "write_alert", broken)
+
+    with caplog.at_level("WARNING", logger="alerting"):
+        ti = SimpleNamespace(dag_id="elt_tlc", task_id="dbt_build")
+        alerting.alert_failure({"task_instance": ti, "exception": None})
+
+    assert "PermissionError" in caplog.text

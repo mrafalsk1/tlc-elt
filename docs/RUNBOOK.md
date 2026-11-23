@@ -5,17 +5,17 @@ Operação local do pipeline ELT mensal (táxi de NYC). Roda todo dia 1º às 06
 
 Ordem das tasks: `dbt_source_freshness` → `ingest_raw` → `dbt_build`.
 
-## Retries, timeouts e SLA
+## Retries e timeouts
 
-| Task | `execution_timeout` | SLA inicial | Retries |
-|---|---|---|---|
-| `dbt_source_freshness` | 10 min | 15 min | 2, backoff exponencial (teto 30 min) |
-| `ingest_raw` | 30 min | 45 min | 2, backoff exponencial (teto 30 min) |
-| `dbt_build` | 60 min | 90 min | 2, backoff exponencial (teto 30 min) |
+| Task | `execution_timeout` | Retries |
+|---|---|---|
+| `dbt_source_freshness` | 10 min | 2, backoff exponencial (teto 30 min) |
+| `ingest_raw` | 30 min | 2, backoff exponencial (teto 30 min) |
+| `dbt_build` | 60 min | 2, backoff exponencial (teto 30 min) |
 
-- O SLA inicial é `execution_timeout` + 50 %. **É provisório.** Os valores de p95
-  ainda não foram medidos; ajustar após 3 runs reais.
+- `dagrun_timeout` do DAG: 3 h (limite da duração total do run).
 - p95 medido (preencher após 3 runs): `dbt_source_freshness` medir · `ingest_raw` medir · `dbt_build` medir.
+  Serve para calibrar os timeouts, não um SLA.
 
 ## (a) Onde ver logs
 
@@ -39,12 +39,14 @@ Ordem das tasks: `dbt_source_freshness` → `ingest_raw` → `dbt_build`.
 3. Corrigir o modelo ou o dado de origem e limpar a task `dbt_build` na UI.
 4. Não marcar a task como sucesso sem o `dbt build` ter passado.
 
-## (d) SLA miss
+## (d) Run travado ou demorado (sem `sla`)
 
-- Gera linha `type: sla_miss`, `severity: warning` no `alerts.jsonl`, uma por task atrasada.
-- SLA miss **não** cancela a task: ela continua rodando. Verificar se terminou com sucesso.
-- Se o atraso for recorrente, medir o p95 de 3 runs e ajustar o SLA em `dags/elt_tlc.py`,
-  registrando o valor novo aqui na tabela.
+- Não usamos `sla` do Airflow: no Airflow 2.x o SLA é relativo ao `logical_date`, que num
+  DAG mensal (`0 6 1 * *`) fica ~31 dias no passado. Qualquer SLA curto dispararia em todo run.
+- O controle é `execution_timeout` por task (10/30/60 min) + `dagrun_timeout` do DAG (3 h).
+  Estouro de timeout falha a task e gera `type: task_failure` no `alerts.jsonl`.
+- Se um run estiver parado na UI: verificar a task em execução, o log e a linha de falha
+  correspondente em `alerts.jsonl`. Ver `DECISIONS.md` D-10.
 
 ## (e) Alerta de qualidade (lacuna 3)
 
@@ -69,9 +71,12 @@ Por que não duplica: `ingest.py` faz DELETE + INSERT por `_source_file` (D-05),
   Pode ser trocado pela variável `ALERTS_FILE`.
 - Formato: uma linha JSON por alerta (JSONL, append-only). Campos:
   `ts`, `source`, `type`, `severity`, `dag_id`, `task_id`, `run_id`, `logical_date`, `message`, `details`.
-- Tipos: `task_failure` (critical) e `sla_miss` (warning).
-- Webhook opcional: se `ALERT_WEBHOOK_URL` estiver definida, o mesmo JSON é enviado por POST
-  (timeout 5 s). Falha no webhook é logada e não interrompe o DAG; o JSONL continua sendo a fonte.
+- Tipo: `task_failure` (critical).
+- Webhook opcional: defina `ALERT_WEBHOOK_URL` no ambiente do host (ou num `.env` ao lado do
+  compose) antes de `docker compose up -d`. O compose repassa a variável ao container
+  (vazia = desligado). Mesmo JSON, POST, timeout 5 s. Falha no webhook gera um warning no log
+  sem a URL (ela pode conter token) e não interrompe o DAG; o JSONL continua sendo a fonte.
+- `ALERTS_FILE` (opcional) troca o caminho do JSONL; também é repassada pelo compose.
 
 Ler os últimos alertas:
 
