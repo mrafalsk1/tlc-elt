@@ -86,17 +86,17 @@ table and flagged, so every exclusion is auditable.
 
 ### Where the demand is
 
-Midtown Center leads with 441,720 trips, followed by Upper East Side South (429,735) and
-Upper East Side North (406,956). JFK Airport is fourth by volume (407,799) but first by
+Midtown Center leads with 441,723 trips, followed by Upper East Side South (429,734) and
+Upper East Side North (406,954). JFK Airport is fourth by volume (407,799) but first by
 revenue: US$ 33.4M against US$ 10.8M from Midtown, because its average ticket is **US$
-81.83** versus US$ 20–24 in Manhattan.
+81.93** versus US$ 20–24 in Manhattan.
 
-![Demand by hour of day](data/graficos/demanda_por_hora.png)
+![Trips by hour of day](data/graficos/demand_by_hour.png)
 
 ### When
 
-The 6 p.m. hour carries 666,416 trips in the quarter, with 5 p.m. (632,051) and 7 p.m.
-(591,465) right behind — the evening peak is three times the early morning.
+The 6 p.m. hour carries 666,416 valid trips in the quarter — about twelve times the 5 a.m.
+trough (55,303) — with 5 p.m. (632,051) and 7 p.m. (591,465) right behind.
 
 ### Tipping by payment method
 
@@ -106,9 +106,9 @@ tips. Read the number as *"tips are only observable for card payments"* — repo
 "cash riders are stingy" would be the classic mistake this dataset invites. Payment types
 3–6 (no charge, dispute, unknown, voided) exist but are under 6% of the volume.
 
-![Top 10 zones by average ticket](data/graficos/ticket_por_zona.png)
+![Top 10 zones by average ticket](data/graficos/avg_fare_by_zone.png)
 
-![Average tip by payment method](data/graficos/gorjeta_por_pagamento.png)
+![Average tip by payment method](data/graficos/tip_by_payment_method.png)
 
 ## Design decisions and trade-offs
 

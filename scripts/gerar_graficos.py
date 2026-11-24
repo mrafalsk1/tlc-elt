@@ -2,6 +2,7 @@
 """Gera 3 gráficos do Projeto A a partir dos dados no Postgres.
 
 Salva em /opt/airflow/data/graficos/ (volume compartilhado com ./data no WSL).
+Todos os textos das figuras são em inglês, porque o README é em inglês.
 
 Uso (dentro do container airflow):
     python /opt/airflow/scripts/gerar_graficos.py
@@ -32,6 +33,7 @@ DB_PARAMS = {
 }
 
 COR = "#1f77b4"
+ZONAS_MIN_VIAGENS = 5_000  # evita que uma zona com 3 corridas de US$ 200 lidere o ticket médio
 
 plt.rcParams.update({
     "font.size": 10,
@@ -53,12 +55,13 @@ def _query(conn, sql: str):
 
 
 def plot_demand(conn, out_dir: Path) -> Path:
-    """Gráfico 1: demanda por hora do dia."""
+    """Gráfico 1: viagens válidas por hora do dia."""
     rows = _query(conn, """
         SELECT
-            EXTRACT(hour FROM pickup_at)::int AS hora,
-            COUNT(*) AS viagens
+            EXTRACT(hour FROM pickup_at)::int AS hour_of_day,
+            COUNT(*) AS trips
         FROM marts.fct_trips
+        WHERE is_valid_trip
         GROUP BY 1
         ORDER BY 1;
     """)
@@ -68,27 +71,30 @@ def plot_demand(conn, out_dir: Path) -> Path:
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.bar(horas, viagens, color=COR)
     ax.set_xlabel("Hour of day")
-    ax.set_ylabel("Trips")
-    ax.set_title("Ride demand by hour of day (3 months, 2024)")
+    ax.set_ylabel("Valid trips")
+    ax.set_title("Trips by hour of day (Jan-Mar 2024)")
     ax.set_xticks(range(24))
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:,.0f}"))
     ax.grid(axis="y", alpha=0.3)
     plt.tight_layout()
-    path = out_dir / "demanda_por_hora.png"
+    path = out_dir / "demand_by_hour.png"
     fig.savefig(path, bbox_inches="tight")
     plt.close(fig)
     return path
 
 
 def plot_fares(conn, out_dir: Path) -> Path:
-    """Gráfico 2: ticket médio por zona (top 10)."""
-    rows = _query(conn, """
+    """Gráfico 2: ticket médio por zona (top 10, só zonas com volume)."""
+    rows = _query(conn, f"""
         SELECT
-            z.zone AS zona,
-            ROUND(AVG(f.total_amount)::numeric, 2) AS ticket_medio
+            z.zone AS pickup_zone,
+            ROUND(AVG(f.total_amount)::numeric, 2) AS avg_fare
         FROM marts.fct_trips f
         JOIN marts.dim_zones z ON f.pickup_zone_id = z.zone_id
+        WHERE f.is_valid_trip
         GROUP BY z.zone
-        ORDER BY ticket_medio DESC
+        HAVING COUNT(*) >= {ZONAS_MIN_VIAGENS}
+        ORDER BY avg_fare DESC
         LIMIT 10;
     """)
     zonas = [r[0] for r in rows]
@@ -99,28 +105,36 @@ def plot_fares(conn, out_dir: Path) -> Path:
 
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.barh(zonas, tickets, color=COR)
-    ax.set_xlabel("Average fare (US$)")
+    ax.set_xlabel("Average ticket (US$)")
     ax.set_ylabel("Pickup zone")
-    ax.set_title("Top 10 zones by average fare (US$, 3 months 2024)")
+    ax.set_title("Top 10 zones by average ticket (Jan-Mar 2024)")
     ax.grid(axis="x", alpha=0.3)
     for i, v in enumerate(tickets):
         ax.text(v + 1, i, f"${v:,.2f}", va="center")
     plt.tight_layout()
-    path = out_dir / "ticket_por_zona.png"
+    path = out_dir / "avg_fare_by_zone.png"
     fig.savefig(path, bbox_inches="tight")
     plt.close(fig)
     return path
 
 
 def plot_tips(conn, out_dir: Path) -> Path:
-    """Gráfico 3: gorjeta por método de pagamento."""
+    """Gráfico 3: gorjeta como % da tarifa, por método de pagamento.
+
+    A média é ponderada pelo valor: sum(tips) / sum(fare). Média simples de
+    `avg_tip_pct` mistura faixas de gorjeta e dá um número que não é o do README.
+    """
     rows = _query(conn, """
         SELECT
-            payment_method AS metodo,
-            ROUND(avg_tip_pct * 100, 1) AS gorjeta_pct
+            payment_method,
+            ROUND(
+                (SUM(total_tips) / NULLIF(SUM(total_fare), 0))::numeric * 100, 1
+            ) AS tip_pct,
+            SUM(trips) AS trips
         FROM marts.agg_payment_behavior
         WHERE payment_method IN ('credit_card', 'cash')
-        ORDER BY gorjeta_pct DESC;
+        GROUP BY 1
+        ORDER BY 2 DESC;
     """)
     metodos = [r[0] for r in rows]
     gorjetas = [float(r[1]) for r in rows]
@@ -129,13 +143,22 @@ def plot_tips(conn, out_dir: Path) -> Path:
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.bar(metodos, gorjetas, color=cores[: len(metodos)])
     ax.set_xlabel("Payment method")
-    ax.set_ylabel("Average tip (% of fare)")
-    ax.set_title("Average tip by payment method (3 months 2024)")
+    ax.set_ylabel("Tips (% of fare)")
+    ax.set_title("Average tip by payment method (Jan-Mar 2024)")
+    ax.set_ylim(0, max(gorjetas) * 1.25 if gorjetas else 1)
     ax.grid(axis="y", alpha=0.3)
     for i, v in enumerate(gorjetas):
-        ax.text(i, v + 0.5, f"{v}%", ha="center")
-    plt.tight_layout()
-    path = out_dir / "gorjeta_por_pagamento.png"
+        ax.text(i, v + 0.4, f"{v}%", ha="center")
+    fig.text(
+        0.5,
+        0.01,
+        "Cash tips are not recorded by the meter; 0% is not a behavioural finding.",
+        ha="center",
+        fontsize=8,
+        style="italic",
+    )
+    plt.tight_layout(rect=(0, 0.04, 1, 1))
+    path = out_dir / "tip_by_payment_method.png"
     fig.savefig(path, bbox_inches="tight")
     plt.close(fig)
     return path
@@ -146,7 +169,7 @@ def generate_all(conn, out_dir: Path = OUT_DIR) -> list[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     paths = [plot_demand(conn, out_dir), plot_fares(conn, out_dir), plot_tips(conn, out_dir)]
     for i, path in enumerate(paths, start=1):
-        print(f"[grafico {i}] {path}")
+        print(f"[chart {i}] {path}")
     return paths
 
 
@@ -156,7 +179,7 @@ def main() -> None:
         generate_all(conn)
     finally:
         conn.close()
-    print("\nTodos os gráficos gerados com sucesso.")
+    print("\nAll charts generated successfully.")
 
 
 if __name__ == "__main__":

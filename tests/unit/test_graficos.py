@@ -44,7 +44,7 @@ def _results():
     return [
         [(hour, 1000 + hour * 10) for hour in range(24)],
         [(f"Zone {i}", 40.0 + i) for i in range(10)],
-        [("credit_card", 22.5), ("cash", 5.0)],
+        [("credit_card", 22.5, 7_190_287), ("cash", 0.0, 1_275_069)],
     ]
 
 
@@ -53,9 +53,9 @@ def test_generate_all_writes_three_valid_pngs(tmp_path):
     paths = gerar_graficos.generate_all(FakeConnection(_results()), tmp_path)
 
     assert [p.name for p in paths] == [
-        "demanda_por_hora.png",
-        "ticket_por_zona.png",
-        "gorjeta_por_pagamento.png",
+        "demand_by_hour.png",
+        "avg_fare_by_zone.png",
+        "tip_by_payment_method.png",
     ]
     for path in paths:
         assert path.exists()
@@ -86,3 +86,17 @@ def test_each_chart_uses_its_own_query(tmp_path):
     assert "fct_trips" in sqls[0]
     assert "dim_zones" in sqls[1]
     assert "agg_payment_behavior" in sqls[2]
+
+
+def test_charts_use_the_same_population_as_the_readme(tmp_path):
+    """Demanda e ticket médio só contam viagens válidas; a gorjeta é ponderada."""
+    conn = FakeConnection(_results())
+    gerar_graficos.generate_all(conn, tmp_path)
+    sqls = [q.sql.lower() for q in conn.queries]
+
+    assert "is_valid_trip" in sqls[0] and "is_valid_trip" in sqls[1]
+    # zona com pouco volume não pode liderar o ticket médio
+    assert "having count(*) >=" in sqls[1]
+    # gorjeta = sum(tips) / sum(fare), não média de médias
+    assert "sum(total_tips)" in sqls[2] and "sum(total_fare)" in sqls[2]
+    assert "group by 1" in sqls[2]

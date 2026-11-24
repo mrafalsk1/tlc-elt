@@ -9,7 +9,7 @@
 | F-05 | dbt marts (fct_trips, dim_zones, agg_daily_demand, agg_payment_behavior) | trip_id único, relacionamentos, is_valid_trip | `dbt build` (testes de marts) | validada |
 | F-06 | Teste de reconciliação receita staging ↔ marts | Retorna 0 linhas quando receitas batem | dbt/tests/assert_revenue_reconciliation.sql | validada |
 | F-07 | CI do GitHub Actions (ruff + dbt build) | `make validate` passa no push | .github/workflows/ci.yml | validada |
-| F-08 | Geração de gráficos (gerar_graficos.py) | 3 PNGs em data/graficos/, textos em inglês | tests/unit/test_graficos.py (3 PNGs válidos, nomes e queries) | validada |
+| F-08 | Geração de gráficos (gerar_graficos.py) | 3 PNGs em data/graficos/, textos e nomes em inglês, mesma população do README (viagens válidas) | tests/unit/test_graficos.py (3 PNGs válidos, nomes, queries e filtro is_valid_trip) | validada |
 | F-09 | Modulo Terraform (S3 + RDS + Glue + IAM) | `fmt -check` e `validate` passam; nenhum recurso aplicado | job `terraform` do CI + `make tf-validate` | validada |
 | F-10 | Alertas locais (JSONL + webhook opcional) | Toda falha/SLA de DagRun vira 1 linha JSONL; webhook ausente não quebra nada | tests/unit/test_alerting.py (16 testes) | validada |
 | F-11 | Operação do DAG | retries 2 com backoff 5→30 min; execution_timeout 10/30/60 min; dagrun_timeout 3 h; callbacks de task e de DagRun | tests/unit/test_dag_contract.py + docs/RUNBOOK.md | validada |
