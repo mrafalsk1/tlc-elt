@@ -57,3 +57,5 @@
 - Regras sobre o schema cru (nomes do Parquet). O dbt normaliza depois.
 - payment_type aceita 0-6 (contrato do dbt), nao 1-6 como o plano sugeria.
 - Nao roda sobre os 9,5 M no CI: run manual, contagens registradas em DATA_CONTRACTS.md secao 10.
+- Paridade: tests/unit/test_quality_parity.py roda as duas implementacoes sobre a fixture e compara as contagens por expectativa (pulado sem GX). Foi ele que mostrou que a FK nula divergia: `rules.py` contava o NaN como violacao e o `ExpectColumnValuesToBeInSet` do GX ignorava. Correcao: `pickup_zone_not_null`/`dropoff_zone_not_null` reportam o nulo e a FK ignora nulo nos dois motores.
+- `dropoff_after_pickup` e regra composta (duas colunas): nao tem expectativa GX equivalente, entao e avaliada em `rules.py` e o runner usa a mesma funcao como complemento. Nao e fachada, e a unica regra que o GX nao cobre.

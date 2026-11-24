@@ -21,7 +21,11 @@ lint:
 # Roda sobre as fixtures: deve detectar as linhas sujas e sair com código 1.
 QUALITY_PY ?= .venv-quality/bin/python
 quality:
-	$(QUALITY_PY) scripts/quality/run_quality.py --input tests/fixtures/trips_sample.csv --zones tests/fixtures/taxi_zones_sample.csv --out data/alerts/alerts.jsonl
+	$(QUALITY_PY) scripts/quality/run_quality.py --input tests/fixtures/trips_sample.csv --zones tests/fixtures/taxi_zones_sample.csv --out data/alerts/quality-fixtures.jsonl
+
+# Paridade rules.py x GX sobre a fixture. Exige pytest no .venv-quality (requirements-dev).
+quality-test:
+	$(QUALITY_PY) -m pytest tests/unit/test_quality_parity.py -q
 
 test:
 	pytest tests/unit tests/integration -v

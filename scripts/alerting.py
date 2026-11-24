@@ -69,10 +69,10 @@ def notify_webhook(entry: dict[str, Any]) -> None:
         )
 
 
-def _emit(entry: dict[str, Any]) -> None:
+def _emit(entry: dict[str, Any], path: str | None = None) -> None:
     # Nunca levanta: alerta quebrado não pode mascarar a falha original da task.
     try:
-        write_alert(entry)
+        write_alert(entry, path=path)
     except Exception as exc:  # noqa: BLE001 - alerta nunca mascara a falha da task
         log.warning("Falha ao gravar alerta em JSONL (%s: %s)", type(exc).__name__, str(exc)[:200])
     notify_webhook(entry)

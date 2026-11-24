@@ -46,7 +46,7 @@ def load_trips(path: Path, limit: int | None) -> pd.DataFrame:
         df = pd.read_csv(path, parse_dates=[rules.PICKUP, rules.DROPOFF], usecols=cols)
     else:
         df = pd.read_parquet(path, columns=cols)
-    return df.head(limit) if limit else df
+    return df.head(limit) if limit is not None else df
 
 
 def build_alert(report: dict[str, Any], input_name: str) -> dict[str, Any] | None:
@@ -77,8 +77,7 @@ def run(input_path: Path, zones_path: Path, out: str | None, limit: int | None, 
     report = engine.run_suite(trips, zones, batch_key=input_path.stem)
     alert = build_alert(report, input_path.name)
     if alert is not None:
-        alerting.write_alert(alert, path=out)
-        alerting.notify_webhook(alert)
+        alerting._emit(alert, path=out)
     for r in report["results"]:
         flag = "OK  " if r["passed"] else "FAIL"
         print(f"{flag} [{r['severity']:8}] {r['id']:24} violações={r['violations']}")
@@ -96,7 +95,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--limit", type=int, default=None, help="só as N primeiras linhas")
     args = parser.parse_args(argv)
 
-    from quality import gx_runner  # import tardio: só quem roda a CLI precisa de GX
+    try:
+        from quality import gx_runner  # import tardio: só quem roda a CLI precisa de GX
+    except ImportError as exc:
+        print(
+            "Great Expectations não instalado neste Python. "
+            "Instale requirements-quality.txt no .venv-quality "
+            f"(detalhe: {exc}).",
+            file=sys.stderr,
+        )
+        return 2
 
     return run(args.input, args.zones, args.out, args.limit, gx_runner)
 

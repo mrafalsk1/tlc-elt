@@ -61,6 +61,12 @@ EXPECTATIONS: list[Expectation] = [
         {},
     ),
     Expectation(
+        "pickup_zone_not_null", PU_ZONE, "not_null", "critical", "zona de embarque nula", {}
+    ),
+    Expectation(
+        "dropoff_zone_not_null", DO_ZONE, "not_null", "critical", "zona de desembarque nula", {}
+    ),
+    Expectation(
         "pickup_zone_fk", PU_ZONE, "fk", "critical", "zona de embarque fora do lookup", {}
     ),
     Expectation(
@@ -96,7 +102,9 @@ def _violation_mask(df: pd.DataFrame, exp: Expectation, zones: set[int]) -> pd.S
     if kind == "dropoff_after_pickup":
         return ~(df[DROPOFF] > df[PICKUP])
     if kind == "fk":
-        return ~df[exp.column].isin(zones)
+        # Nulo não é violação de FK: quem reporta é a regra not_null (igual ao GX).
+        col = df[exp.column]
+        return col.notna() & ~col.isin(zones)
     if kind == "in_set":
         return df[exp.column].notna() & ~df[exp.column].isin(exp.params["values"])
     if kind == "row_count":
