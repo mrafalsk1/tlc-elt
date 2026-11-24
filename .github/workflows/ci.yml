@@ -50,8 +50,14 @@ jobs:
         run: pip install --quiet -r requirements.txt -r requirements-dev.txt
 
       # Único portão: check-env + lint + test + bootstrap do banco + dbt build.
+      # Em caso de falha, publica o fim do log como annotation (visível sem login).
       - name: Build (make validate)
-        run: make validate
+        run: |
+          set -o pipefail
+          if ! make validate 2>&1 | tee /tmp/validate.log; then
+            printf '::error title=make validate falhou::%s\n' "$(tail -3 /tmp/validate.log | tr '\n' ' ')"
+            exit 1
+          fi
 
       - name: dbt docs
         working-directory: dbt
