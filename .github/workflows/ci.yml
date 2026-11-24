@@ -55,7 +55,7 @@ jobs:
         run: |
           set -o pipefail
           if ! make validate 2>&1 | tee /tmp/validate.log; then
-            printf '::error title=make validate falhou::%s\n' "$(tail -3 /tmp/validate.log | tr '\n' ' ')"
+            printf '::error title=make validate falhou::%s\n' "$(tail -25 /tmp/validate.log | tr '\n' ' ')"
             exit 1
           fi
 
