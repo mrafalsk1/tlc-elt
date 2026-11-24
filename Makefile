@@ -15,7 +15,7 @@ check-env:
 	python scripts/check_env.py
 
 lint:
-	ruff check scripts dags
+	ruff check scripts dags dagster_project
 
 # Qualidade com Great Expectations: NÃO entra em validate (exige .venv-quality com GX).
 # Roda sobre as fixtures: deve detectar as linhas sujas e sair com código 1.
@@ -26,6 +26,12 @@ quality:
 # Paridade rules.py x GX sobre a fixture. Exige pytest no .venv-quality (requirements-dev).
 quality-test:
 	$(QUALITY_PY) -m pytest tests/unit/test_quality_parity.py -q
+
+# Dagster (comparativo, lacuna 8): valida definições e lista assets, sem tocar o Postgres.
+DAGSTER_PY ?= .venv-dagster/bin/dagster
+dagster-check:
+	$(DAGSTER_PY) definitions validate -m dagster_project.definitions
+	$(DAGSTER_PY) asset list -m dagster_project.definitions
 
 test:
 	pytest tests/unit tests/integration -v

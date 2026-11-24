@@ -1,0 +1,8 @@
+# Dagster em venv separado (.venv-dagster, Python 3.12) — NÃO entra no requirements.txt
+# nem no `make validate`: o orquestrador comparativo não pode engordar o build principal.
+# Versões fixadas em 2026-11-24; freeze completo validado localmente (ver D-12).
+dagster==1.13.31
+dagster-duckdb==0.29.31
+duckdb==2.0.1
+pandas==2.2.3
+pyarrow==18.1.0

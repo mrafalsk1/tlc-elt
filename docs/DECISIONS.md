@@ -59,3 +59,16 @@
 - Nao roda sobre os 9,5 M no CI: run manual, contagens registradas em DATA_CONTRACTS.md secao 10.
 - Paridade: tests/unit/test_quality_parity.py roda as duas implementacoes sobre a fixture e compara as contagens por expectativa (pulado sem GX). Foi ele que mostrou que a FK nula divergia: `rules.py` contava o NaN como violacao e o `ExpectColumnValuesToBeInSet` do GX ignorava. Correcao: `pickup_zone_not_null`/`dropoff_zone_not_null` reportam o nulo e a FK ignora nulo nos dois motores.
 - `dropoff_after_pickup` e regra composta (duas colunas): nao tem expectativa GX equivalente, entao e avaliada em `rules.py` e o runner usa a mesma funcao como complemento. Nao e fachada, e a unica regra que o GX nao cobre.
+
+## D-12: Dagster como comparativo, em venv separado
+- `dagster_project/definitions.py`: 2 assets (`raw_trips` le o Parquet cru; `daily_agg` agrega viagens e receita por dia em DuckDB) + schedule mensal `monthly_tlc_refresh`, no mesmo calendario do DAG de Airflow.
+- Motivo: a lacuna 8 pede um segundo orquestrador. O objetivo e saber comparar, nao migrar: dbt e Airflow continuam sendo o pipeline real.
+- O diretorio NAO se chama `dagster/` de proposito: um pacote local com esse nome sombrearia a lib `dagster` no import.
+- Airflow vs Dagster, na pratica deste projeto:
+  - Airflow organiza por **task** e agenda por tempo; o lineage entre etapas so existe se voce declarar XCom/dependencias.
+  - Dagster organiza por **asset** (o dado e o contrato): `daily_agg` declara `raw_trips` como entrada, entao a dependencia e o proprio lineage. `dagster asset materialize --select 'raw_trips+'` rematerializa a linhagem inteira.
+  - Dagster exige IO manager para persistir saida entre assets (aqui: fs padrao para o DataFrame e DuckDB para a tabela); Airflow nao persiste nada por padrao, cada task se vira.
+  - Custo: Dagster e um framework maior (grpc, webserver, storage) para o mesmo fluxo; Airflow ja esta no compose e o dbt roda igual.
+  - Quando escolher: Dagster quando o ativo (tabela/modelo) e o centro e o time quer lineage/particoes de primeira classe; Airflow quando o ecossistema de operadores prontos e a familiaridade pesam mais (caso deste projeto).
+- Versoes: dagster==1.13.31, dagster-duckdb==0.29.31, duckdb==2.0.1 (requirements-dagster.txt). Validado em 2026-11-24: `definitions validate`, `asset list` e materializacao de `raw_trips+` (35 dias, 2.964.624 viagens, receita 79.456.384,28).
+- O job de CI e opcional (paths filter) para nao engordar o build principal; `make validate` nao mudou.

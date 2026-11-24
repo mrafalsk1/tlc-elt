@@ -20,6 +20,11 @@ dbt/dbt_packages/
 dbt/logs/
 dbt/.user.yml
 
+# Dagster (comparativo, lacuna 8)
+data/dagster.duckdb
+dagster_home/
+.tmp_dagster_home_*
+
 # Ambiente
 .env
 .DS_Store

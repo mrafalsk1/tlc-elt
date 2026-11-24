@@ -1,0 +1,33 @@
+name: Dagster
+
+# Job opcional: valida o projeto comparativo de Dagster. Não é required check —
+# roda só quando o diretório do projeto ou o requirements mudam, ou manualmente.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "dagster_project/**"
+      - "requirements-dagster.txt"
+      - ".github/workflows/dagster-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install --quiet -r requirements-dagster.txt
+
+      - name: Validate definitions
+        run: dagster definitions validate -m dagster_project.definitions
+
+      - name: List assets
+        run: dagster asset list -m dagster_project.definitions
