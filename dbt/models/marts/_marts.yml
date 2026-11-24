@@ -82,6 +82,31 @@ models:
         tests:
           - not_null
 
+  - name: features_daily_zone
+    description: >
+      Features de ML no grão dia × zona de embarque (uma linha por zone_id + trip_date),
+      com janelas de 7 dias e lag de 1 dia. Fonte: agg_daily_demand.
+    columns:
+      - name: zone_id
+        description: "Zona de embarque. Deve existir em dim_zones."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_zones')
+              field: zone_id
+      - name: trip_date
+        description: "Dia da agregação. Chave composta com zone_id (teste singular)."
+        tests:
+          - not_null
+      - name: trips
+        description: "Corridas válidas no dia naquela zona."
+        tests:
+          - not_null
+      - name: is_airport_zone
+        description: "Herdado de dim_zones; coalesce para false quando a zona não está na dimensão."
+        tests:
+          - not_null
+
   - name: agg_payment_behavior
     description: >
       Gorjeta por forma de pagamento e faixa de gorjeta. Grão: método × faixa.
