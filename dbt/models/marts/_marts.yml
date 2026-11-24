@@ -107,6 +107,26 @@ models:
         tests:
           - not_null
 
+  - name: features_zone_graph
+    description: >
+      Features de centralidade do grafo de zonas (pickup → dropoff), no grão de zona.
+      O seed é gerado por scripts/build_knowledge_graph.py a partir do Parquet cru;
+      zona sem aresta recebe 0 (left join com dim_zones).
+    columns:
+      - name: zone_id
+        description: "Zona da TLC; uma linha por zona."
+        tests:
+          - unique
+          - not_null
+      - name: pagerank
+        description: "PageRank (alpha 0.85) ponderado pelo volume de viagens."
+        tests:
+          - not_null
+      - name: betweenness_centrality
+        description: "Betweenness normalizada: papel de zona de passagem."
+        tests:
+          - not_null
+
   - name: agg_payment_behavior
     description: >
       Gorjeta por forma de pagamento e faixa de gorjeta. Grão: método × faixa.

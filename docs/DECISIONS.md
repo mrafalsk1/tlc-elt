@@ -72,3 +72,13 @@
   - Quando escolher: Dagster quando o ativo (tabela/modelo) e o centro e o time quer lineage/particoes de primeira classe; Airflow quando o ecossistema de operadores prontos e a familiaridade pesam mais (caso deste projeto).
 - Versoes: dagster==1.13.31, dagster-duckdb==0.29.31, duckdb==2.0.1 (requirements-dagster.txt). Validado em 2026-11-24: `definitions validate`, `asset list` e materializacao de `raw_trips+` (35 dias, 2.964.624 viagens, receita 79.456.384,28).
 - O job de CI e opcional (paths filter) para nao engordar o build principal; `make validate` nao mudou.
+
+## D-13: Features (dia x zona) e grafo de zonas como seed
+- `features_daily_zone`: grao `(zone_id, trip_date)`, derivado de `agg_daily_demand` (que ja aplica `is_valid_trip`). Janela de 7 dias inclui o dia corrente; `trips_prev_day` (lag 1) e nulo na primeira data da zona, por definicao.
+- Motivo do grao: uma linha por zona-dia e o formato que serve para previsao de demanda (serie por zona) sem precisar de pivot no consumo. Nao inclui flags de outlier por linha porque a selecao ja aconteceu em `agg_daily_demand`/`fct_trips`.
+- Teste de grao: `dbt_utils` nao esta no projeto, entao a unicidade composta e um teste singular (`dbt/tests/assert_features_daily_zone_unique.sql`), e nao `unique_combination_of_columns`.
+- Grafo: nos = zonas (`PULocationID`/`DOLocationID`), arestas dirigidas com peso = viagens. `pagerank` responde "quais zonas concentram fluxo estrutural"; `betweenness` responde "quais zonas sao passagem obrigatoria". Sao eixos diferentes: uma zona pode ter pagerank medio e betweenness alto (ex.: corredores).
+- Por que seed commitado (e nao calcular dentro do dbt): o SQL do Postgres nao tem betweenness/pagerank, e um modelo Python externo no CI exigiria o Parquet de 9,5 M (que nunca entra no git). O seed tem 262 linhas, e deterministico a partir do script, e permite o join ser testado no CI. O custo e regenerar a mao quando os dados mudarem (`python scripts/build_knowledge_graph.py`).
+- `features_zone_graph` faz LEFT JOIN de `dim_zones`: nenhuma zona some por nao ter aresta, e no CI (warehouse vazio) o modelo devolve 0 linhas em vez de quebrar os testes de relacionamento.
+- Dependencias: networkx==3.7 (grafo) e scipy==1.18.1 (pagerank do networkx exige scipy). Ambas em `requirements.txt`, porque o teste unitario roda no `make validate`.
+- Medido em 2026-11-24: 20.338 linhas de features diarias (261 zonas), 262 zonas e 37.255 arestas no grafo (9.554.778 viagens), script em 2,7 s.

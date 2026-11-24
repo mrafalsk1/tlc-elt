@@ -173,6 +173,22 @@ Resultado: exit 1 (critical falhou). Tempo do run: 8 s. Não medido ainda: o má
 
 Leitura: `fare_between` e `dropoff_after_pickup` concentram quase todas as violações. Ficam como critical por contrato; decidir se negativos e zero viram filtro no dbt (já existe `fare_amount > 0` em `stg_yellow_trips`) é tarefa de modelagem, não desta lacuna.
 
+## 11. marts.features_daily_zone (tabela)
+
+- Grão: `(zone_id, trip_date)` — uma linha por zona e dia, só corridas válidas (`is_valid_trip`).
+- `zone_id` → `dim_zones.zone_id` (relacionamento testado); `trip_date` e `trips` não nulos.
+- Colunas: `trips`, `revenue`, `avg_ticket`, `avg_duration_min`, `avg_speed_mph`, `is_airport_zone`, `trips_7d_rolling`, `revenue_7d_rolling`, `trips_7d_avg`, `trips_prev_day`.
+- Janela de 7 dias: `rows between 6 preceding and current row` por zona (inclui o dia corrente). `trips_prev_day` é nulo na primeira data de cada zona — esperado, não é erro.
+- Medido em 2026-11-24 (jan–mar/2024): 20.338 linhas, 261 zonas, 2024-01-01 a 2024-03-31.
+
+## 12. marts.features_zone_graph (tabela)
+
+- Grão: `zone_id`, uma linha por zona de `dim_zones` (left join: zona sem aresta recebe 0).
+- Colunas: `borough`, `zone`, `is_airport`, `in_degree`, `out_degree`, `weighted_in_trips`, `weighted_out_trips`, `pagerank`, `betweenness_centrality`.
+- Fonte: seed `dbt/seeds/zone_graph_features.csv`, gerado por `scripts/build_knowledge_graph.py` a partir do Parquet cru. Regenerar: `python scripts/build_knowledge_graph.py` + `dbt seed --select zone_graph_features`.
+- Semântica: `pagerank` (alpha 0.85, peso = viagens) mede popularidade estrutural; `betweenness_centrality` (normalizada, peso unitário) mede papel de zona de passagem. São eixos diferentes de propósito.
+- Medido em 2026-11-24: 262 zonas, 37.255 arestas, 9.554.778 viagens, densidade 0,545, 2,7 s no WSL; `features_zone_graph` com 265 linhas (tamanho de `dim_zones`).
+
 ## Regras de mudança de schema
 
 - Adição de coluna: classificar como aditiva; atualizar este contrato e testes de contrato.
