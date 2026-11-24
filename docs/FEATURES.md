@@ -11,6 +11,12 @@
 | F-07 | CI do GitHub Actions (ruff + dbt build) | `make validate` passa no push | .github/workflows/ci.yml | validada |
 | F-08 | Geração de gráficos (gerar_graficos.py) | 3 PNGs em data/graficos/, textos em inglês | tests/unit/test_graficos.py (3 PNGs válidos, nomes e queries) | validada |
 | F-09 | Modulo Terraform (S3 + RDS + Glue + IAM) | `fmt -check` e `validate` passam; nenhum recurso aplicado | job `terraform` do CI + `make tf-validate` | validada |
+| F-10 | Alertas locais (JSONL + webhook opcional) | Toda falha/SLA de DagRun vira 1 linha JSONL; webhook ausente não quebra nada | tests/unit/test_alerting.py (16 testes) | validada |
+| F-11 | Operação do DAG | retries 2 com backoff 5→30 min; execution_timeout 10/30/60 min; dagrun_timeout 3 h; callbacks de task e de DagRun | tests/unit/test_dag_contract.py + docs/RUNBOOK.md | validada |
+| F-12 | Qualidade com Great Expectations 1.25.0 | 11 expectativas (críticas e avisos), exit 1 se critical falha, alerta local; paridade rules↔GX | tests/unit/test_expectations.py + test_quality_parity.py + `make quality` | validada |
+| F-13 | Dagster comparativo | 2 assets + schedule mensal; `definitions validate` e materialização | `make dagster-check` + `.github/workflows/dagster-ci.yml` | validada |
+| F-14 | Features diárias por zona (ML) | grão `(zone_id, trip_date)` único; janelas 7d e lag 1d | `dbt build` + assert_features_daily_zone_unique/non_negative | validada |
+| F-15 | Features de grafo de zonas | 262 zonas e 37.255 arestas; pagerank + betweenness por zona | tests/unit/test_graph_features.py + assert_features_zone_graph_ranges.sql | validada |
 
 Legenda de status: pendente | em_andamento | validada | bloqueada
 
@@ -25,3 +31,7 @@ Legenda de status: pendente | em_andamento | validada | bloqueada
 | 2026-11-07 | CI do GitHub Actions (run #8, commit `ebe2ac1`) | push em `main` | workflow `build` concluído com sucesso (https://github.com/mrafalsk1/tlc-elt/actions/runs/42373813404) |
 | 2026-11-07 | Critérios §8: idempotência do DAG e demo de dado sujo | replay de 3 meses + `dbt test` com linha suja | raw 9.554.778→9.554.778, fct_trips 9.412.455→9.412.455, 0 `trip_id` duplicados; `accepted_values` falha com `payment_type=99` |
 | 2026-11-17 | Terraform 1.9.8 / provider aws 5.100.0 | `terraform init -backend=false && terraform fmt -check -recursive && terraform validate` | fmt OK; "Success! The configuration is valid." |
+| 2026-11-24 | Lacuna 5: alertas e operação do DAG (`6ebee9e`, `f85bb79`, `ff53501`) | `make validate` + `pytest tests/unit` + `airflow dags list-import-errors` | validate OK (37 passed, dbt 43/43); 15 testes de alerta/contrato; DAG parseado com dagrun_timeout 3 h e callbacks |
+| 2026-11-24 | Lacuna 3: Great Expectations sobre fixture e sobre jan/2024 (`7646351`, `9828bd1`) | `make quality` (fixture) + run real no Parquet | fixture: 7 expectativas falham, exit 1; real (2.964.624 linhas): fare_between 37.494, dropoff_after_pickup 870, distance_between 31, demais 0; paridade rules↔GX 1 passed |
+| 2026-11-24 | Lacuna 8: Dagster 1.13.31 (`8a1a2d2`) | `make dagster-check` + `dagster asset materialize --select 'raw_trips+'` | validate e asset list OK; 35 dias, 2.964.624 viagens, receita 79.456.384,28 em DuckDB |
+| 2026-11-24 | Lacuna 9: features e grafo (`3cb4205`, `69289fa`) | `dbt build --target ci` + `python scripts/build_knowledge_graph.py` | dbt PASS=58; features 20.338 linhas/261 zonas (jan–mar/2024); grafo 262 zonas/37.255 arestas/9.554.778 viagens/2,7 s |

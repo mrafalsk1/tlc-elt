@@ -81,4 +81,5 @@
 - Por que seed commitado (e nao calcular dentro do dbt): o SQL do Postgres nao tem betweenness/pagerank, e um modelo Python externo no CI exigiria o Parquet de 9,5 M (que nunca entra no git). O seed tem 262 linhas, e deterministico a partir do script, e permite o join ser testado no CI. O custo e regenerar a mao quando os dados mudarem (`python scripts/build_knowledge_graph.py`).
 - `features_zone_graph` faz LEFT JOIN de `dim_zones`: nenhuma zona some por nao ter aresta, e no CI (warehouse vazio) o modelo devolve 0 linhas em vez de quebrar os testes de relacionamento.
 - Dependencias: networkx==3.7 (grafo) e scipy==1.18.1 (pagerank do networkx exige scipy). Ambas em `requirements.txt`, porque o teste unitario roda no `make validate`.
+- CI passou a usar Python 3.12 em 2026-11-24: scipy 1.18 e networkx 3.7 exigem >=3.12, e o container do Airflow ja roda 3.12.9 — assim CI, container e venv local usam a mesma versao. Antes o CI estava em 3.11.
 - Medido em 2026-11-24: 20.338 linhas de features diarias (261 zonas), 262 zonas e 37.255 arestas no grafo (9.554.778 viagens), script em 2,7 s.
